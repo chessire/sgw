@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="common-web" default="package" basedir=".">
+<project name="common-web" default="package" basedir="." xmlns:ivy="antlib:org.apache.ivy.ant">
   <property name="root.dir" location="../.."/>
   <property file="${root.dir}/build.properties"/>
 
@@ -9,6 +9,9 @@
   <property name="module.src.dir" location="src/main/java"/>
   <property name="module.resources.dir" location="src/main/resources"/>
   <property name="module.dist.dir" location="${dist.dir}/common"/>
+  <property name="ivy.settings.path" location="${root.dir}/ivy-settings.xml"/>
+  <property name="ivy.module.path" location="${root.dir}/ivy.xml"/>
+  <property name="ivy.lib.dir" location="${root.dir}/.ant/lib"/>
 
   <path id="module.classpath">
     <path refid="project.classpath"/>
@@ -21,7 +24,21 @@
     <delete dir="${module.build.dir}"/>
   </target>
 
-  <target name="prepare">
+  <target name="setup-classpath" unless="project.classpath">
+    <mkdir dir="${ivy.lib.dir}"/>
+    <get src="${ivy.jar.url}" dest="${ivy.lib.dir}/ivy.jar" skipexisting="true"/>
+    <path id="ivy.lib.path">
+      <fileset dir="${ivy.lib.dir}" includes="ivy.jar"/>
+    </path>
+    <taskdef resource="org/apache/ivy/ant/antlib.xml"
+             uri="antlib:org.apache.ivy.ant"
+             classpathref="ivy.lib.path"/>
+    <ivy:settings file="${ivy.settings.path}"/>
+    <ivy:resolve file="${ivy.module.path}" conf="compile,runtime"/>
+    <ivy:cachepath pathid="project.classpath" conf="compile,runtime"/>
+  </target>
+
+  <target name="prepare" depends="setup-classpath">
     <mkdir dir="${module.classes.dir}"/>
     <mkdir dir="${module.dist.dir}"/>
   </target>

@@ -21,11 +21,15 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http
-            .csrf()
             .authorizeRequests()
+                .antMatchers("/api/**", "/swagger-ui.html", "/v2/api-docs", "/webjars/**", "/swagger-resources/**").permitAll()
                 .anyRequest().authenticated()
             .and()
-            .httpBasic();
+            .httpBasic()
+            .and()
+            // REST API endpoints don't need CSRF protection (not cookie-based)
+            .csrf()
+                .ignoringAntMatchers("/api/**");
     }
 
     @Override

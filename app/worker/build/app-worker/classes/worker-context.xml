@@ -9,9 +9,11 @@
 
     <context:property-placeholder location="classpath:application.properties" ignore-unresolvable="true"/>
 
-    <context:component-scan base-package="sgw.common"/>
-    <context:component-scan base-package="sgw.app.worker.messaging"/>
+    <context:component-scan base-package="sgw.common.core"/>
+    <!-- RabbitMQ 없이 실행: messaging 패키지 스캔 제거 -->
+    <!-- <context:component-scan base-package="sgw.app.worker.messaging"/> -->
 
-    <amqp:annotation-driven/>
+    <!-- RabbitMQ 없이 실행: AMQP 비활성화 -->
+    <!-- <amqp:annotation-driven/> -->
 
 </beans>

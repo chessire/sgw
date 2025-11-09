@@ -52,6 +52,9 @@
     <dependency org="org.springframework.security" name="spring-security-core" rev="4.2.13.RELEASE" conf="compile->default"/>
     <dependency org="org.springframework.security" name="spring-security-web" rev="4.2.13.RELEASE" conf="compile->default"/>
     <dependency org="org.springframework.security" name="spring-security-config" rev="4.2.13.RELEASE" conf="compile->default"/>
+    
+    <!-- JWT -->
+    <dependency org="io.jsonwebtoken" name="jjwt" rev="0.9.1" conf="compile->default"/>
 
     <!-- Apache Commons & utility libraries commonly used in eGov projects -->
     <dependency org="org.apache.commons" name="commons-lang3" rev="3.12.0" conf="compile->default"/>

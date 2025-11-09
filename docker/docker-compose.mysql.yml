@@ -1,0 +1,36 @@
+name: sgw-mysql
+
+services:
+  mysql-db:
+    image: mysql:8.0
+    container_name: sgw-mysql-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_NAME:-app}
+      MYSQL_USER: ${DB_USERNAME:-app}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-app}
+      TZ: Asia/Seoul
+    command:
+      - mysqld
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+09:00
+      - --default-authentication-plugin=mysql_native_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - backend
+
+volumes:
+  mysql-data:
+    name: sgw-mysql-data
+
+networks:
+  backend:
+    name: sgw-backend-internal
+    external: true
+

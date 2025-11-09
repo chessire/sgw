@@ -1,0 +1,22 @@
+body {
+    margin: 0;
+    font-family: "Noto Sans KR", sans-serif;
+    background-color: #f5f7fa;
+    color: #1f2933;
+}
+
+#app {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 48px 24px;
+}
+
+#app h1 {
+    font-size: 32px;
+    margin-bottom: 16px;
+}
+
+#app p {
+    font-size: 16px;
+    line-height: 1.5;
+}

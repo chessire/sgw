@@ -1,0 +1,10 @@
+spring:
+  mvc:
+    servlet:
+      path: /
+  security:
+    filter:
+      order: -100
+logging:
+  level:
+    org.springframework.security: INFO

@@ -1,0 +1,3 @@
+sgw\common\persistence\config\DatabaseConfiguration.class
+sgw\common\persistence\config\PersistenceAutoConfiguration.class
+sgw\common\persistence\config\MyBatisConfiguration.class

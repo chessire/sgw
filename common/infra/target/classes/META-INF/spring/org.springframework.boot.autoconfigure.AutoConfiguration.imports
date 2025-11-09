@@ -1,0 +1,3 @@
+sgw.common.infra.config.EasyCacheConfiguration
+sgw.common.infra.config.RabbitConfiguration
+sgw.common.infra.config.MinioConfiguration

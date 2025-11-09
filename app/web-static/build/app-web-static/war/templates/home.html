@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Thymeleaf Sample</title>
+</head>
+<body>
+<h1 th:text="${title}">Thymeleaf 페이지</h1>
+<p th:text="${description}">설명</p>
+<ul>
+    <li th:each="item : ${items}" th:text="item">항목</li>
+</ul>
+</body>
+</html>

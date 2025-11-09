@@ -1,0 +1,4 @@
+sgw\app\batch\BatchApplication.class
+sgw\app\batch\job\SampleJobConfiguration.class
+sgw\app\batch\messaging\WorkerPingListener.class
+sgw\app\batch\BatchConfiguration.class

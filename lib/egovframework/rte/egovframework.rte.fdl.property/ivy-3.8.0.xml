@@ -1,0 +1,6 @@
+<ivy-module version="2.0">
+  <info organisation="egovframework.rte" module="egovframework.rte.fdl.property" revision="3.8.0"/>
+  <publications>
+    <artifact name="egovframework.rte.fdl.property" type="jar" ext="jar"/>
+  </publications>
+</ivy-module>

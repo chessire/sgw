@@ -1,0 +1,5 @@
+sgw\app\webstatic\WebStaticServletInitializer.class
+sgw\app\webstatic\controller\SpaForwardController.class
+sgw\app\webstatic\config\SpaWebConfig.class
+sgw\app\webstatic\WebStaticApplication.class
+sgw\app\webstatic\controller\ThymeleafSampleController.class

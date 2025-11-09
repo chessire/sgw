@@ -1,0 +1,24 @@
+name: sgw-redis
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - backend
+
+volumes:
+  redis-data:
+    name: sgw-redis-data
+
+networks:
+  backend:
+    name: sgw-backend-internal
+    external: true
+

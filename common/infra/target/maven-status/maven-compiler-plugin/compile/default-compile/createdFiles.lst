@@ -1,0 +1,7 @@
+sgw\common\infra\config\EasyCacheConfiguration.class
+sgw\common\infra\config\MinioConfiguration$MinioProperties.class
+sgw\common\infra\config\EasyCacheProperties$Pool.class
+sgw\common\infra\messaging\RabbitMessagingConstants.class
+sgw\common\infra\config\RabbitConfiguration.class
+sgw\common\infra\config\EasyCacheProperties.class
+sgw\common\infra\config\MinioConfiguration.class

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="common-infra" default="package" basedir="." xmlns:ivy="antlib:org.apache.ivy.ant">
+  <property name="root.dir" location="../.."/>
+  <property file="${root.dir}/build.properties"/>
+
+  <property name="module.name" value="common-infra"/>
+  <property name="module.build.dir" location="${build.dir}/${module.name}"/>
+  <property name="module.classes.dir" location="${module.build.dir}/classes"/>
+  <property name="module.src.dir" location="src/main/java"/>
+  <property name="module.resources.dir" location="src/main/resources"/>
+  <property name="module.dist.dir" location="${dist.dir}/common"/>
+
+  <path id="module.classpath">
+    <path refid="project.classpath"/>
+    <pathelement location="${root.dir}/common/core/build/common-core/classes"/>
+    <pathelement location="${root.dir}/common/persistence/build/common-persistence/classes"/>
+  </path>
+
+  <target name="clean">
+    <delete dir="${module.build.dir}"/>
+  </target>
+
+  <target name="setup-classpath" unless="project.classpath">
+    <mkdir dir="${root.dir}/.ant/lib"/>
+    <get src="${ivy.jar.url}" dest="${root.dir}/.ant/lib/ivy.jar" skipexisting="true"/>
+    <path id="ivy.lib.path">
+      <fileset dir="${root.dir}/.ant/lib" includes="ivy.jar"/>
+    </path>
+    <taskdef resource="org/apache/ivy/ant/antlib.xml"
+             uri="antlib:org.apache.ivy.ant"
+             classpathref="ivy.lib.path"/>
+    <ivy:settings file="${root.dir}/ivy-settings.xml"/>
+    <ivy:resolve file="${root.dir}/ivy.xml" conf="compile,runtime"/>
+    <ivy:cachepath pathid="project.classpath" conf="compile,runtime"/>
+  </target>
+
+  <target name="prepare" depends="setup-classpath">
+    <mkdir dir="${module.classes.dir}"/>
+    <mkdir dir="${module.dist.dir}"/>
+  </target>
+
+  <target name="compile" depends="prepare">
+    <javac srcdir="${module.src.dir}"
+           destdir="${module.classes.dir}"
+           source="${java.source}"
+           target="${java.target}"
+           encoding="${encoding}">
+      <classpath refid="module.classpath"/>
+    </javac>
+    <copy todir="${module.classes.dir}" filtering="false" overwrite="true">
+      <fileset dir="${module.resources.dir}" includes="**/*" erroronmissingdir="false"/>
+    </copy>
+  </target>
+
+  <target name="package" depends="compile">
+    <jar destfile="${module.dist.dir}/${module.name}.jar" basedir="${module.classes.dir}"/>
+  </target>
+</project>

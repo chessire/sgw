@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="backend" default="help" basedir="." xmlns:ivy="antlib:org.apache.ivy.ant">
+  <property file="build.properties"/>
+
+  <target name="help">
+    <echo message="Available targets:"/>
+    <echo message="  init-ivy        - download Ivy if necessary"/>
+    <echo message="  resolve         - resolve shared dependencies"/>
+    <echo message="  clean           - clean all module builds"/>
+    <echo message="  compile         - compile all modules"/>
+    <echo message="  package         - build all artifacts"/>
+    <echo message="  dist-clean      - remove build/dist directories"/>
+  </target>
+
+  <target name="init-ivy">
+    <mkdir dir="${ivy.jar.dir}"/>
+    <get src="${ivy.jar.url}" dest="${ivy.jar.dir}/ivy.jar" skipexisting="true"/>
+    <path id="ivy.lib.path">
+      <fileset dir="${ivy.jar.dir}" includes="ivy.jar"/>
+    </path>
+    <taskdef resource="org/apache/ivy/ant/antlib.xml"
+             uri="antlib:org.apache.ivy.ant"
+             classpathref="ivy.lib.path"/>
+  </target>
+
+  <target name="resolve" depends="init-ivy">
+    <ivy:settings file="${ivy.settings.file}"/>
+    <ivy:resolve file="${ivy.file}" conf="compile,runtime"/>
+    <ivy:cachepath pathid="project.classpath" conf="compile,runtime"/>
+  </target>
+
+  <target name="clean">
+    <ant antfile="build.xml" dir="common/core" target="clean" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="common/persistence" target="clean" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="common/infra" target="clean" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="common/web" target="clean" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="app/api" target="clean" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="app/admin" target="clean" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="app/web-static" target="clean" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="app/batch" target="clean" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="app/worker" target="clean" inheritAll="false" inheritRefs="true"/>
+  </target>
+
+  <target name="compile" depends="resolve">
+    <ant antfile="build.xml" dir="common/core" target="compile" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="common/persistence" target="compile" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="common/infra" target="compile" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="common/web" target="compile" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="app/api" target="compile" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="app/admin" target="compile" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="app/web-static" target="compile" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="app/batch" target="compile" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="app/worker" target="compile" inheritAll="false" inheritRefs="true"/>
+  </target>
+
+  <target name="package" depends="compile">
+    <ant antfile="build.xml" dir="common/core" target="package" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="common/persistence" target="package" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="common/infra" target="package" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="common/web" target="package" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="app/api" target="package" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="app/web-static" target="package" inheritAll="false" inheritRefs="true"/>
+    <ant antfile="build.xml" dir="app/worker" target="package" inheritAll="false" inheritRefs="true"/>
+  </target>
+
+  <target name="dist-clean">
+    <delete dir="${build.dir}"/>
+    <delete dir="${dist.dir}"/>
+    <delete dir="${reports.dir}"/>
+  </target>
+</project>

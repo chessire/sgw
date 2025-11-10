@@ -31,7 +31,6 @@
 
   <target name="clean">
     <ant antfile="build.xml" dir="common/core" target="clean" inheritAll="false" inheritRefs="true"/>
-    <ant antfile="build.xml" dir="common/persistence" target="clean" inheritAll="false" inheritRefs="true"/>
     <ant antfile="build.xml" dir="common/infra" target="clean" inheritAll="false" inheritRefs="true"/>
     <ant antfile="build.xml" dir="common/web" target="clean" inheritAll="false" inheritRefs="true"/>
     <ant antfile="build.xml" dir="app/api" target="clean" inheritAll="false" inheritRefs="true"/>
@@ -43,7 +42,6 @@
 
   <target name="compile" depends="resolve">
     <ant antfile="build.xml" dir="common/core" target="compile" inheritAll="false" inheritRefs="true"/>
-    <ant antfile="build.xml" dir="common/persistence" target="compile" inheritAll="false" inheritRefs="true"/>
     <ant antfile="build.xml" dir="common/infra" target="compile" inheritAll="false" inheritRefs="true"/>
     <ant antfile="build.xml" dir="common/web" target="compile" inheritAll="false" inheritRefs="true"/>
     <ant antfile="build.xml" dir="app/api" target="compile" inheritAll="false" inheritRefs="true"/>
@@ -55,7 +53,6 @@
 
   <target name="package" depends="compile">
     <ant antfile="build.xml" dir="common/core" target="package" inheritAll="false" inheritRefs="true"/>
-    <ant antfile="build.xml" dir="common/persistence" target="package" inheritAll="false" inheritRefs="true"/>
     <ant antfile="build.xml" dir="common/infra" target="package" inheritAll="false" inheritRefs="true"/>
     <ant antfile="build.xml" dir="common/web" target="package" inheritAll="false" inheritRefs="true"/>
     <ant antfile="build.xml" dir="app/api" target="package" inheritAll="false" inheritRefs="true"/>

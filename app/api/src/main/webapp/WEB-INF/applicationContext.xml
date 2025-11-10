@@ -14,5 +14,8 @@
     <context:component-scan base-package="sgw.common.infra.config"/>
     <context:component-scan base-package="sgw.common.infra.condition"/>
     <context:component-scan base-package="sgw.common.infra.messaging"/>
+    
+    <!-- Web 공통 모듈 (Security, JWT) -->
+    <context:component-scan base-package="sgw.common.web"/>
 
 </beans>

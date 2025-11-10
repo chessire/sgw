@@ -1,5 +1,0 @@
-sgw\common\core\config\TracingConfiguration.class
-sgw\common\core\config\LoggingConfiguration.class
-sgw\common\core\config\LoggingConfiguration$LoggingMarkerFactory.class
-sgw\common\core\support\ResponseWrapper.class
-sgw\common\core\config\CoreAutoConfiguration.class

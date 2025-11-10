@@ -1,5 +1,0 @@
-sgw\common\web\config\SecurityConfiguration.class
-sgw\common\web\config\ControllerAdvisor.class
-sgw\common\web\oauth\SecurityConstants.class
-sgw\common\web\config\OpenApiConfiguration.class
-sgw\common\web\config\WebAutoConfiguration.class

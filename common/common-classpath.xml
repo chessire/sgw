@@ -4,7 +4,6 @@
 
   <path id="shared.compile.classpath">
     <pathelement location="${build.dir}/common-core/classes"/>
-    <pathelement location="${build.dir}/common-persistence/classes"/>
     <pathelement location="${build.dir}/common-infra/classes"/>
     <pathelement location="${build.dir}/common-web/classes"/>
     <path refid="project.classpath"/>

@@ -1,9 +1,0 @@
-logging:
-  level:
-    root: INFO
-app:
-  datasource:
-    enabled: true
-  datasource:
-    flyway:
-      enabled: true

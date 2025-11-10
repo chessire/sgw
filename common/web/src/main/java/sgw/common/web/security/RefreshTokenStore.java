@@ -6,7 +6,6 @@ import org.springframework.stereotype.Component;
 
 /**
  * In-memory storage for refresh tokens.
- * In production, consider using Redis or a database.
  */
 @Component
 public class RefreshTokenStore {

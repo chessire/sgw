@@ -15,8 +15,8 @@ import org.springframework.kafka.annotation.EnableKafka;
 @EnableKafka
 @ComponentScan(
     basePackages = {
-        "com.example.worker",
-        "com.example.common.infra"
+        "com.cas.worker",
+        "com.cas.common.infra"
     },
     excludeFilters = {
         @ComponentScan.Filter(

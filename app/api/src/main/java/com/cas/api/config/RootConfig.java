@@ -14,9 +14,9 @@ import org.springframework.context.annotation.PropertySource;
 @Configuration
 @EnableAspectJAutoProxy
 @ComponentScan(basePackages = {
-    "com.example.common.core",
-    "com.example.common.infra",
-    "com.example.api.service"
+    "com.cas.common.core",
+    "com.cas.common.infra",
+    "com.cas.api.service"
 })
 @PropertySource("classpath:application.properties")
 @Import({RedisConfig.class, KafkaConfig.class})

@@ -9,8 +9,8 @@ import org.springframework.context.annotation.PropertySource;
  */
 @Configuration
 @ComponentScan(basePackages = {
-    "com.example.common.core",
-    "com.example.web.service"
+    "com.cas.common.core",
+    "com.cas.web.service"
 })
 @PropertySource("classpath:application.properties")
 public class RootConfig {

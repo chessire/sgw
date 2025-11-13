@@ -16,9 +16,9 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 @Configuration
 @EnableWebMvc
 @ComponentScan(basePackages = {
-    "com.example.common.web",
-    "com.example.api.controller",
-    "com.example.api.config"
+    "com.cas.common.web",
+    "com.cas.api.controller",
+    "com.cas.api.config"
 })
 @Import(WebMvcConfig.class)
 public class WebConfig {

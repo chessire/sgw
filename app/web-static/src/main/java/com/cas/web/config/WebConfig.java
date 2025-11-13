@@ -21,8 +21,8 @@ import org.thymeleaf.templatemode.TemplateMode;
 @Configuration
 @EnableWebMvc
 @ComponentScan(basePackages = {
-    "com.example.common.web",
-    "com.example.web.controller"
+    "com.cas.common.web",
+    "com.cas.web.controller"
 })
 public class WebConfig implements WebMvcConfigurer {
 

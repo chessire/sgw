@@ -84,14 +84,10 @@
             <artifactId>hibernate-validator</artifactId>
         </dependency>
 
-        <!-- Swagger (Development Only) -->
+        <!-- SpringDoc OpenAPI (Development Only) -->
         <dependency>
-            <groupId>io.springfox</groupId>
-            <artifactId>springfox-swagger2</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.springfox</groupId>
-            <artifactId>springfox-swagger-ui</artifactId>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-ui</artifactId>
         </dependency>
 
         <!-- AspectJ -->

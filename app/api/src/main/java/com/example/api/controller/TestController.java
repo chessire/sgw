@@ -6,8 +6,8 @@ import com.example.common.infra.heavytask.TestUserHeavyTask;
 import com.example.common.infra.cache.CacheService;
 import com.example.common.infra.messaging.KafkaProducerService;
 import com.example.common.web.dto.ApiResponse;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @RestController
 @RequestMapping("/test")
 @RequiredArgsConstructor
-@Api(tags = "Test API")
+@Tag(name = "Test API", description = "Redis + Kafka 통합 테스트 API")
 @Profile({"development", "local"})
 public class TestController {
 
@@ -52,7 +52,7 @@ public class TestController {
      * 4. Worker가 Kafka 메시지를 받아 Redis에서 TestObject 조회 및 로그 출력
      */
     @PostMapping
-    @ApiOperation(value = "Redis + Kafka 통합 테스트 (일반 Task)", notes = "랜덤 TestObject를 생성하여 Redis에 저장 (자동 JSON 변환)하고, TestHeavyTask를 Kafka로 전송합니다. (순차성 보장 X, 빠른 병렬 처리)")
+    @Operation(summary = "Redis + Kafka 통합 테스트 (일반 Task)", description = "랜덤 TestObject를 생성하여 Redis에 저장 (자동 JSON 변환)하고, TestHeavyTask를 Kafka로 전송합니다. (순차성 보장 X, 빠른 병렬 처리)")
     public ApiResponse<Map<String, Object>> test() {
         log.info("========================================");
         log.info("  Test API Called - Redis + Kafka Test (General Task)");
@@ -119,7 +119,7 @@ public class TestController {
      * Worker는 순차적으로 처리하여 userIndex 순서를 보장합니다.
      */
     @PostMapping("/user-test")
-    @ApiOperation(value = "사용자별 순차 처리 테스트 (1000개)", notes = "userId=1로 고정하여 TestUserHeavyTask 1000개를 생성하고 Kafka로 전송합니다.")
+    @Operation(summary = "사용자별 순차 처리 테스트 (1000개)", description = "userId=1로 고정하여 TestUserHeavyTask 1000개를 생성하고 Kafka로 전송합니다.")
     public ApiResponse<Map<String, Object>> userTest() {
         log.info("========================================");
         log.info("  User Test API Called - Creating 1000 TestUserHeavyTasks");
@@ -208,7 +208,7 @@ public class TestController {
      * Redis에 저장된 user-test-log를 조회합니다.
      */
     @PostMapping("/get-user-test-log")
-    @ApiOperation(value = "사용자 테스트 로그 조회", notes = "Redis에 저장된 user-test-log를 조회합니다.")
+    @Operation(summary = "사용자 테스트 로그 조회", description = "Redis에 저장된 user-test-log를 조회합니다.")
     public ApiResponse<Map<String, Object>> getUserTestLog() {
         log.info("========================================");
         log.info("  Get User Test Log API Called");
@@ -254,7 +254,7 @@ public class TestController {
      * userIndex 카운터와 Redis의 user-test-log를 초기화합니다.
      */
     @PostMapping("/clean-user-test")
-    @ApiOperation(value = "사용자 테스트 초기화", notes = "userIndex 카운터와 Redis의 user-test-log를 초기화합니다.")
+    @Operation(summary = "사용자 테스트 초기화", description = "userIndex 카운터와 Redis의 user-test-log를 초기화합니다.")
     public ApiResponse<Map<String, Object>> cleanUserTest() {
         log.info("========================================");
         log.info("  Clean User Test API Called");

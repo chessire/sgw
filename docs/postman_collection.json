@@ -1,0 +1,166 @@
+{
+	"info": {
+		"name": "CAS API Collection",
+		"description": "Spring Framework 5.3.39 기반 CAS API 문서\n\n## 환경 구성\n- Development: http://localhost:8080\n- Production: http://your-production-server:8080\n\n## 주요 기능\n1. Health Check: 서버 상태 확인\n2. Redis + Kafka 통합 테스트\n3. 사용자별 순차 처리 테스트 (Kafka 파티셔닝)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "cas-api"
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "서버 상태 확인",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"health"
+							]
+						},
+						"description": "서버의 현재 상태를 확인합니다.\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"status\": \"UP\",\n    \"timestamp\": 1699999999999\n  },\n  \"message\": \"OK\"\n}\n```"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Redis + Kafka 통합 테스트",
+			"item": [
+				{
+					"name": "일반 Task 테스트 (순차성 보장 X)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/test",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"test"
+							]
+						},
+						"description": "Redis + Kafka 통합 테스트 (일반 Task - 순차성 보장 X)\n\n**처리 과정:**\n1. 랜덤 TestObject 생성 (id, name, value)\n2. Redis에 TestObject 저장 (자동 JSON 변환)\n3. TestHeavyTask를 Kafka에 전송 (key 없음 - 랜덤 파티션)\n4. Worker가 Kafka 메시지를 소비하여 Redis에서 TestObject 조회 및 로그 출력\n\n**특징:**\n- 순차성 보장 없음 (빠른 병렬 처리)\n- 여러 Worker가 동시에 처리 가능\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"testObject\": {\n      \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"name\": \"TestObject-1234\",\n      \"value\": 42\n    },\n    \"redisKey\": \"test:object:latest\",\n    \"kafkaTopic\": \"test-tasks\",\n    \"taskId\": \"task-1699999999999\",\n    \"taskType\": \"TestHeavyTask (General Task)\",\n    \"sequencing\": \"NO (Fast Parallel Processing)\",\n    \"message\": \"TestObject saved to Redis and TestHeavyTask sent to Kafka!\"\n  },\n  \"message\": \"OK\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "사용자별 순차 처리 테스트 (1000개)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/test/user-test",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"test",
+								"user-test"
+							]
+						},
+						"description": "사용자별 순차 처리 테스트 (1000개)\n\n**처리 과정:**\n1. userId=1로 고정하여 TestUserHeavyTask 1000개 생성 (메모리)\n2. userIndex는 0부터 999까지 자동 증가\n3. 모든 Task를 빠르게 Kafka로 전송 (userId를 Kafka key로 사용)\n4. Worker가 순차적으로 처리하여 Redis에 로그 기록\n\n**특징:**\n- Kafka 파티셔닝에 의한 순차성 보장 (동일 userId는 항상 같은 파티션으로)\n- Kafka Consumer concurrency=1 설정으로 순서 보장\n- Worker는 userIndex를 Redis에 기록\n\n**테스트 순서:**\n1. `/clean-user-test` 호출 (초기화)\n2. `/user-test` 호출 (1000개 Task 전송)\n3. 15초 대기 (Worker 처리 시간)\n4. `/get-user-test-log` 호출 (결과 확인)\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"taskType\": \"TestUserHeavyTask\",\n    \"userId\": \"1\",\n    \"count\": 1000,\n    \"startIndex\": 0,\n    \"endIndex\": 999,\n    \"generateTimeMs\": 150,\n    \"sendTimeMs\": 1200,\n    \"totalTimeMs\": 1350,\n    \"sequencing\": \"YES (User-based Sequential Processing)\",\n    \"kafkaTopic\": \"user-test-tasks\",\n    \"message\": \"1000 TestUserHeavyTasks created (userIndex: 0 ~ 999) and sent to Kafka! (Generate: 150ms, Send: 1200ms)\"\n  },\n  \"message\": \"OK\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "사용자 테스트 로그 조회",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/test/get-user-test-log",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"test",
+								"get-user-test-log"
+							]
+						},
+						"description": "사용자 테스트 로그 조회\n\nRedis에 저장된 user-test-log를 조회합니다.\nWorker가 처리한 userIndex 순서를 확인하여 순차 처리가 올바르게 동작하는지 검증합니다.\n\n**기대 결과:**\n- 순차 처리가 정상 동작하면 userIndex가 0부터 999까지 순서대로 출력됩니다.\n- 예: \"userIndex : 0\", \"userIndex : 1\", \"userIndex : 2\", ...\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"redisKey\": \"user-test-log\",\n    \"logs\": \"userIndex : 0\\nuserIndex : 1\\nuserIndex : 2\\n...\\nuserIndex : 999\\n\",\n    \"lineCount\": 1000,\n    \"isEmpty\": false,\n    \"message\": \"Retrieved 1000 log entries\"\n  },\n  \"message\": \"OK\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "사용자 테스트 초기화",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/test/clean-user-test",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"test",
+								"clean-user-test"
+							]
+						},
+						"description": "사용자 테스트 초기화\n\n**처리 내용:**\n1. userIndex 카운터를 0으로 리셋\n2. Redis의 user-test-log 키 삭제\n\n**사용 시점:**\n- 새로운 테스트를 시작하기 전\n- 이전 테스트 결과를 초기화하고 싶을 때\n\n**Response Example:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"previousCount\": 1000,\n    \"currentCount\": 0,\n    \"redisLogDeleted\": true,\n    \"message\": \"User test data cleaned successfully!\"\n  },\n  \"message\": \"OK\"\n}\n```"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		}
+	]
+}
+

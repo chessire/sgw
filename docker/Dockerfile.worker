@@ -1,0 +1,19 @@
+# Worker Dockerfile
+FROM eclipse-temurin:21-jre-alpine
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# JAR 파일 복사
+COPY ../app/worker/target/worker.jar /app/worker.jar
+
+# 환경 변수 설정
+ENV SPRING_PROFILES_ACTIVE=development
+ENV JAVA_OPTS="-Xms256m -Xmx512m"
+
+# 포트 노출 (필요시)
+EXPOSE 8080
+
+# 애플리케이션 실행
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/worker.jar"]
+

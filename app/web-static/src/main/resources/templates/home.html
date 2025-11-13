@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title}">Welcome</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 50px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            text-align: center;
+        }
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #555;
+            font-size: 1.2em;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        .timestamp {
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 30px;
+        }
+        .links {
+            margin-top: 30px;
+        }
+        a {
+            display: inline-block;
+            margin: 10px;
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            transition: all 0.3s;
+        }
+        a:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .badge {
+            display: inline-block;
+            padding: 5px 15px;
+            background: #4caf50;
+            color: white;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 th:text="${title}">Welcome</h1>
+        <span class="badge">✨ Thymeleaf</span>
+        <p th:text="${message}">Spring Framework 기반 웹 애플리케이션</p>
+        <div class="links">
+            <a th:href="@{/about}">소개</a>
+            <a th:href="@{/api/health}">API 헬스체크</a>
+            <a th:href="@{/cocostudio-example}">Cocostudio 예시</a>
+        </div>
+        <p class="timestamp">
+            Current Time: <span th:text="${timestamp}">2024-01-01 00:00:00</span>
+        </p>
+    </div>
+    
+    <!-- Thymeleaf JavaScript 변수 주입 예시 -->
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        // 서버에서 동적으로 주입되는 설정값
+        const appConfig = {
+            title: /*[[${title}]]*/ 'Default Title',
+            timestamp: /*[[${timestamp}]]*/ '2024-01-01',
+            // Cocostudio에서 필요한 동적 값들을 여기에 주입 가능
+            // apiEndpoint: /*[[${apiEndpoint}]]*/ 'http://localhost:8080/api',
+            // secretKey: /*[[${encryptedSecretKey}]]*/ 'default-key'
+        };
+        
+        console.log('App Config:', appConfig);
+        /*]]>*/
+    </script>
+</body>
+</html>
+

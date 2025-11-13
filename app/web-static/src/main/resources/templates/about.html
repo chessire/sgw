@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title}">About</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 50px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 700px;
+        }
+        h1 {
+            color: #f5576c;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .info h3 {
+            color: #f5576c;
+            margin-bottom: 10px;
+        }
+        .info ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .info li {
+            padding: 5px 0;
+            color: #555;
+        }
+        .info li:before {
+            content: "▸ ";
+            color: #f5576c;
+            font-weight: bold;
+        }
+        .back-link {
+            text-align: center;
+            margin-top: 30px;
+        }
+        a {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #f5576c;
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            transition: all 0.3s;
+        }
+        a:hover {
+            background: #f093fb;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .badge {
+            display: inline-block;
+            padding: 5px 15px;
+            background: #4caf50;
+            color: white;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 th:text="${title}">About</h1>
+        <span class="badge">✨ Thymeleaf</span>
+        
+        <div class="info">
+            <h3>프로젝트 구조</h3>
+            <ul>
+                <li>app/api - REST API 서버 (WAR)</li>
+                <li>app/web-static - 프론트엔드 서버 (WAR) <strong>← Thymeleaf</strong></li>
+                <li>app/batch - 배치 작업 (JAR) <strong>← Spring Boot</strong></li>
+                <li>app/worker - 워커 서버 (JAR) <strong>← Spring Boot</strong></li>
+            </ul>
+        </div>
+        
+        <div class="info">
+            <h3>공통 모듈</h3>
+            <ul>
+                <li>common/core - 공통 코드</li>
+                <li>common/infra - 인프라 코드 (Kafka, Redis)</li>
+                <li>common/web - 웹 공통 코드</li>
+            </ul>
+        </div>
+        
+        <div class="info">
+            <h3>기술 스택</h3>
+            <ul>
+                <li>Spring Framework 4.3.30</li>
+                <li>Spring Security 4.2.13</li>
+                <li>Thymeleaf 3.0.15 (Template Engine)</li>
+                <li>JDK 17</li>
+                <li>Apache Tomcat 9.0.112</li>
+                <li>Maven 3.9.11</li>
+            </ul>
+        </div>
+
+        <div class="info">
+            <h3>Thymeleaf 장점</h3>
+            <ul>
+                <li>Natural Templates - Cocostudio HTML을 그대로 사용 가능</li>
+                <li>JavaScript 내 동적 변수 주입 가능</li>
+                <li>환경별 설정 (API Endpoint, Secret Key 등) 서버에서 주입</li>
+                <li>Spring Framework와 완벽 통합</li>
+            </ul>
+        </div>
+        
+        <div class="back-link">
+            <a th:href="@{/}">홈으로 돌아가기</a>
+        </div>
+    </div>
+</body>
+</html>
+

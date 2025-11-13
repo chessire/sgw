@@ -72,11 +72,6 @@
         <thymeleaf-spring5.version>3.1.2.RELEASE</thymeleaf-spring5.version>
 
         <!-- ========================================
-             API Documentation (SpringDoc - 보안 강화)
-             ======================================== -->
-        <springdoc.version>1.6.15</springdoc.version>
-
-        <!-- ========================================
              Messaging & Cache
              ======================================== -->
         <!-- Kafka (최신 버전 - CVE 수정) -->
@@ -88,29 +83,15 @@
         <spring-data-redis.version>2.7.18</spring-data-redis.version>
 
         <!-- ========================================
-             Database & Persistence
-             ======================================== -->
-        <mybatis.version>3.5.16</mybatis.version>
-        <mybatis-spring.version>2.1.2</mybatis-spring.version>
-        <hikaricp.version>5.1.0</hikaricp.version>
-
-        <!-- ========================================
              Utilities
              ======================================== -->
         <commons-lang3.version>3.17.0</commons-lang3.version>
         <lombok.version>1.18.36</lombok.version>
 
         <!-- ========================================
-             AOP & AspectJ
+             AOP & AspectJ (Required by Spring AOP)
              ======================================== -->
         <aspectj.version>1.9.22.1</aspectj.version>
-
-        <!-- ========================================
-             Validation
-             ======================================== -->
-        <validation-api.version>2.0.1.Final</validation-api.version>
-        <hibernate-validator.version>6.2.5.Final</hibernate-validator.version>
-        <!-- NOTE: Hibernate Validator 7.x+ requires Jakarta EE (javax -> jakarta namespace change) -->
 
         <!-- ========================================
              Testing
@@ -309,18 +290,6 @@
                 <version>${jackson.version}</version>
             </dependency>
 
-            <!-- API Documentation (SpringDoc OpenAPI 3.0) -->
-            <dependency>
-                <groupId>org.springdoc</groupId>
-                <artifactId>springdoc-openapi-webmvc-core</artifactId>
-                <version>${springdoc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springdoc</groupId>
-                <artifactId>springdoc-openapi-ui</artifactId>
-                <version>${springdoc.version}</version>
-            </dependency>
-
             <!-- Kafka -->
             <dependency>
                 <groupId>org.apache.kafka</groupId>
@@ -345,37 +314,6 @@
                 <version>${spring-data-redis.version}</version>
             </dependency>
 
-            <!-- AspectJ -->
-            <dependency>
-                <groupId>org.aspectj</groupId>
-                <artifactId>aspectjweaver</artifactId>
-                <version>${aspectj.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.aspectj</groupId>
-                <artifactId>aspectjrt</artifactId>
-                <version>${aspectj.version}</version>
-            </dependency>
-
-            <!-- Connection Pool -->
-            <dependency>
-                <groupId>com.zaxxer</groupId>
-                <artifactId>HikariCP</artifactId>
-                <version>${hikaricp.version}</version>
-            </dependency>
-
-            <!-- MyBatis -->
-            <dependency>
-                <groupId>org.mybatis</groupId>
-                <artifactId>mybatis</artifactId>
-                <version>${mybatis.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.mybatis</groupId>
-                <artifactId>mybatis-spring</artifactId>
-                <version>${mybatis-spring.version}</version>
-            </dependency>
-
             <!-- Lombok -->
             <dependency>
                 <groupId>org.projectlombok</groupId>
@@ -384,16 +322,11 @@
                 <scope>provided</scope>
             </dependency>
 
-            <!-- Validation -->
+            <!-- AspectJ (Required by Spring AOP) -->
             <dependency>
-                <groupId>javax.validation</groupId>
-                <artifactId>validation-api</artifactId>
-                <version>${validation-api.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.hibernate.validator</groupId>
-                <artifactId>hibernate-validator</artifactId>
-                <version>${hibernate-validator.version}</version>
+                <groupId>org.aspectj</groupId>
+                <artifactId>aspectjweaver</artifactId>
+                <version>${aspectj.version}</version>
             </dependency>
 
             <!-- Java Annotations (PostConstruct, PreDestroy 등) -->

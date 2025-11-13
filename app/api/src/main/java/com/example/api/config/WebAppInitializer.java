@@ -3,7 +3,8 @@ package com.example.api.config;
 import org.springframework.web.servlet.support.AbstractAnnotationConfigDispatcherServletInitializer;
 
 /**
- * Web Application 초기화 설정 (web.xml 대체)
+ * Web Application Initializer
+ * Servlet 3.0+ 환경에서 web.xml을 대체
  */
 public class WebAppInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
 

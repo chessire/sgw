@@ -72,9 +72,9 @@
         <thymeleaf-spring5.version>3.1.2.RELEASE</thymeleaf-spring5.version>
 
         <!-- ========================================
-             API Documentation (SpringDoc - Springfox 대체)
+             API Documentation (SpringDoc - 보안 강화)
              ======================================== -->
-        <springdoc.version>1.8.0</springdoc.version>
+        <springdoc.version>1.6.15</springdoc.version>
 
         <!-- ========================================
              Messaging & Cache
@@ -310,6 +310,11 @@
             </dependency>
 
             <!-- API Documentation (SpringDoc OpenAPI 3.0) -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-webmvc-core</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-ui</artifactId>

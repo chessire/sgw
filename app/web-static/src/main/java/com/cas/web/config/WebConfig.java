@@ -1,11 +1,15 @@
 package com.cas.web.config;
 
+import com.cas.common.web.config.SecureObjectMapperConfig;
 import com.cas.common.web.filter.LoggingFilter;
+import com.cas.common.web.filter.SecurityHeadersFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.lang.NonNull;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -17,6 +21,10 @@ import org.thymeleaf.templatemode.TemplateMode;
 /**
  * Web Application Context 설정
  * Spring 5.x + Thymeleaf 3.1.x
+ * 
+ * 보안 강화:
+ * - SecureObjectMapperConfig: RCE 취약점 방어
+ * - SecurityHeadersFilter: 보안 헤더 및 위험한 Content-Type 차단
  */
 @Configuration
 @EnableWebMvc
@@ -24,6 +32,7 @@ import org.thymeleaf.templatemode.TemplateMode;
     "com.cas.common.web",
     "com.cas.web.controller"
 })
+@Import(SecureObjectMapperConfig.class)
 public class WebConfig implements WebMvcConfigurer {
 
     @Autowired
@@ -71,9 +80,17 @@ public class WebConfig implements WebMvcConfigurer {
     public LoggingFilter loggingFilter() {
         return new LoggingFilter();
     }
+    
+    /**
+     * 보안 헤더 필터 (RCE 방어)
+     */
+    @Bean
+    public SecurityHeadersFilter securityHeadersFilter() {
+        return new SecurityHeadersFilter();
+    }
 
     @Override
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+    public void addResourceHandlers(@NonNull ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/resources/**")
                 .addResourceLocations("/resources/");
         registry.addResourceHandler("/static/**")

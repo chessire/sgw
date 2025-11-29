@@ -5,7 +5,6 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -16,8 +15,11 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 /**
  * Redis 설정 클래스
  * NHN EasyCache(Redis 기반)를 포함한 Redis 연동 설정
+ * 
+ * 보안 강화: Java Serialization 차단, JSON 기반 직렬화만 사용
  */
 @Configuration
+@SuppressWarnings({"deprecation", "null"})
 public class RedisConfig {
 
     @Value("${redis.host:localhost}")
@@ -41,6 +43,14 @@ public class RedisConfig {
         return jedisConnectionFactory;
     }
 
+    /**
+     * RedisTemplate 설정
+     * 
+     * 보안 강화:
+     * - GenericJackson2JsonRedisSerializer 대신 커스텀 ObjectMapper 사용
+     * - Java Serialization 차단
+     * - JSON 기반 직렬화만 허용
+     */
     @Bean
     public RedisTemplate<String, Object> redisTemplate() {
         RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
@@ -50,9 +60,12 @@ public class RedisConfig {
         redisTemplate.setKeySerializer(new StringRedisSerializer());
         redisTemplate.setHashKeySerializer(new StringRedisSerializer());
         
-        // Value Serializer
-        redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer());
-        redisTemplate.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
+        // Value Serializer: 보안 강화된 ObjectMapper 사용
+        // GenericJackson2JsonRedisSerializer는 DefaultTyping을 사용할 수 있어 위험
+        // 대신 커스텀 ObjectMapper를 사용하여 명시적 타입 제어
+        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(secureRedisObjectMapper());
+        redisTemplate.setValueSerializer(serializer);
+        redisTemplate.setHashValueSerializer(serializer);
         
         return redisTemplate;
     }
@@ -65,13 +78,43 @@ public class RedisConfig {
     }
 
     /**
-     * ObjectMapper 빈 (CacheService에서 사용)
-     * JavaTimeModule을 등록하여 LocalDateTime 등을 지원합니다.
+     * CacheService용 보안 강화된 ObjectMapper
+     * 
+     * 보안 조치:
+     * - Polymorphic Deserialization 화이트리스트 적용
+     * - DefaultTyping 비활성화
+     * - Java Time API 지원
      */
     @Bean
     public ObjectMapper objectMapper() {
+        return secureRedisObjectMapper();
+    }
+    
+    /**
+     * Redis 직렬화용 보안 강화된 ObjectMapper (private)
+     */
+    private ObjectMapper secureRedisObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
+        
+        // Java Time API 지원
         mapper.registerModule(new JavaTimeModule());
+        
+        // 보안 설정: DefaultTyping 비활성화 (명시적 확인)
+        // Jackson 2.10+ 에서는 기본적으로 비활성화되어 있음
+        
+        // 알 수 없는 속성 무시
+        mapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        
+        // Polymorphic Type Validator 적용
+        com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator ptv = 
+            com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator.builder()
+                .allowIfBaseType("com.cas.")  // 프로젝트 패키지만 허용
+                .allowIfBaseType("java.time.") // Java Time API 허용
+                .allowIfBaseType("java.util.") // Collections 허용
+                .build();
+        
+        mapper.setPolymorphicTypeValidator(ptv);
+        
         return mapper;
     }
 }

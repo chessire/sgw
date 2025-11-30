@@ -84,6 +84,9 @@ public class RedisConfig {
      * - Polymorphic Deserialization 화이트리스트 적용
      * - DefaultTyping 비활성화
      * - Java Time API 지원
+     * 
+     * Note: SecureObjectMapperConfig의 secureObjectMapper가 @Primary로 등록되어 있으므로
+     * 이 빈은 명시적으로 주입받을 때만 사용됩니다.
      */
     @Bean
     public ObjectMapper objectMapper() {

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -91,8 +92,8 @@ public class SecureObjectMapperConfig {
         // 5. 모듈 등록
         // ================================================
         
-        // Java 8 날짜/시간 API 지원은 common-infra 모듈에서 설정
-        // (JavaTimeModule은 common-web에서 의존성이 없음)
+        // Java 8 날짜/시간 API 지원 (LocalDateTime, LocalDate 등)
+        mapper.registerModule(new JavaTimeModule());
         
         return mapper;
     }

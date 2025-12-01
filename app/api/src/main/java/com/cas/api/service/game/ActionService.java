@@ -194,7 +194,7 @@ public class ActionService {
     }
     
     /**
-     * 채권 매수 처리
+     * 채권 가입/해지 처리
      */
     private void processBondActions(GameSessionDto session, PortfolioDto portfolio, Map<String, Object> actions) {
         @SuppressWarnings("unchecked")
@@ -206,6 +206,7 @@ public class ActionService {
         
         for (Map<String, Object> bond : bonds) {
             String bondId = (String) bond.get("bondId");
+            String action = (String) bond.get("action");
             Long amount = getLongValue(bond.get("amount"));
             
             if (amount == null || amount <= 0) {
@@ -213,46 +214,188 @@ public class ActionService {
                 continue;
             }
             
-            // 현금 확인
-            if (portfolio.getCash() < amount) {
-                log.warn("Insufficient cash for bond: cash={}, amount={}", 
-                    portfolio.getCash(), amount);
+            // 액션 처리
+            if ("SUBSCRIBE".equalsIgnoreCase(action)) {
+                // 채권 가입
+                processBondSubscribe(session, portfolio, bondId, amount);
+            } else if ("CANCEL".equalsIgnoreCase(action)) {
+                // 채권 해지 (FIFO)
+                processBondCancel(session, portfolio, bondId, amount);
+            } else {
+                log.warn("Unknown bond action: {}", action);
+            }
+        }
+    }
+    
+    /**
+     * 채권 가입 처리
+     */
+    private void processBondSubscribe(GameSessionDto session, PortfolioDto portfolio, 
+                                       String bondId, Long amount) {
+        // 현금 확인
+        if (portfolio.getCash() < amount) {
+            log.warn("Insufficient cash for bond: cash={}, amount={}", 
+                portfolio.getCash(), amount);
+            return;
+        }
+        
+        // 현재 기준금리 조회 (경쟁모드는 baseRateCase 반영)
+        BigDecimal baseRate = marketEventService.getBaseRate(session);
+        
+        // 채권 금리 = 기준금리 + 스프레드 (모드별 만기)
+        BigDecimal interestRate;
+        int maturityMonths;
+        
+        if (bondId.equals("BOND_NATIONAL")) {
+            interestRate = baseRate.add(GameConstants.BOND_NATIONAL_SPREAD);
+            maturityMonths = (session.getGameMode() == GameMode.TUTORIAL) 
+                ? GameConstants.TUTORIAL_BOND_NATIONAL_MATURITY_MONTHS 
+                : GameConstants.COMPETITION_BOND_NATIONAL_MATURITY_MONTHS;
+        } else { // BOND_CORPORATE
+            interestRate = baseRate.add(GameConstants.BOND_CORPORATE_SPREAD);
+            maturityMonths = (session.getGameMode() == GameMode.TUTORIAL) 
+                ? GameConstants.TUTORIAL_BOND_CORPORATE_MATURITY_MONTHS 
+                : GameConstants.COMPETITION_BOND_CORPORATE_MATURITY_MONTHS;
+        }
+        
+        BondDto newBond = BondDto.builder()
+            .bondId(bondId)
+            .name(getBondName(bondId))
+            .faceValue(amount)
+            .evaluationAmount(amount)
+            .interestRate(interestRate)
+            .subscriptionRound(session.getCurrentRound())
+            .maturityRound(session.getCurrentRound() + maturityMonths)
+            .elapsedMonths(0)
+            .build();
+        
+        portfolio.getBonds().add(newBond);
+        portfolio.setCash(portfolio.getCash() - amount);
+        
+        log.info("Bond subscribed: bondId={}, amount={}", bondId, amount);
+    }
+    
+    /**
+     * 채권 해지 처리 (FIFO - 먼저 가입한 것부터 해지)
+     */
+    private void processBondCancel(GameSessionDto session, PortfolioDto portfolio, 
+                                     String bondId, Long cancelAmount) {
+        if (portfolio.getBonds() == null || portfolio.getBonds().isEmpty()) {
+            log.warn("No bonds to cancel: bondId={}", bondId);
+            return;
+        }
+        
+        // 현재 기준금리 조회
+        BigDecimal baseRate = marketEventService.getBaseRate(session);
+        
+        // 해당 bondId의 채권들을 가입 순서대로 정렬 (subscriptionRound 오름차순)
+        List<BondDto> targetBonds = portfolio.getBonds().stream()
+            .filter(b -> bondId.equals(b.getBondId()))
+            .sorted((b1, b2) -> Integer.compare(
+                b1.getSubscriptionRound() != null ? b1.getSubscriptionRound() : 0,
+                b2.getSubscriptionRound() != null ? b2.getSubscriptionRound() : 0
+            ))
+            .collect(java.util.stream.Collectors.toList());
+        
+        if (targetBonds.isEmpty()) {
+            log.warn("No matching bonds to cancel: bondId={}", bondId);
+            return;
+        }
+        
+        long remainingCancelAmount = cancelAmount;
+        long totalReceivedAmount = 0L;
+        List<BondDto> bondsToRemove = new ArrayList<>();
+        
+        // FIFO 방식으로 해지
+        for (BondDto bond : targetBonds) {
+            if (remainingCancelAmount <= 0) {
+                break;
+            }
+            
+            Long faceValue = bond.getFaceValue() != null ? bond.getFaceValue() : 0L;
+            
+            if (faceValue <= 0) {
                 continue;
             }
             
-            // 현재 기준금리 조회 (경쟁모드는 baseRateCase 반영)
-            BigDecimal baseRate = marketEventService.getBaseRate(session);
+            // 해지 금액 계산
+            int currentRound = session.getCurrentRound();
+            int subscriptionRound = bond.getSubscriptionRound() != null ? bond.getSubscriptionRound() : currentRound;
+            int elapsedMonths = currentRound - subscriptionRound;
+            int maturityRound = bond.getMaturityRound() != null ? bond.getMaturityRound() : currentRound;
+            int remainingMonths = Math.max(0, maturityRound - currentRound);
             
-            // 채권 금리 = 기준금리 + 스프레드 (모드별 만기)
-            BigDecimal interestRate;
-            int maturityMonths;
-            
+            // 중도 해지 금액 계산
+            BigDecimal redemptionAmount;
             if (bondId.equals("BOND_NATIONAL")) {
-                interestRate = baseRate.add(GameConstants.BOND_NATIONAL_SPREAD);
-                maturityMonths = (session.getGameMode() == GameMode.TUTORIAL) 
-                    ? GameConstants.TUTORIAL_BOND_NATIONAL_MATURITY_MONTHS 
-                    : GameConstants.COMPETITION_BOND_NATIONAL_MATURITY_MONTHS;
-            } else { // BOND_CORPORATE
-                interestRate = baseRate.add(GameConstants.BOND_CORPORATE_SPREAD);
-                maturityMonths = (session.getGameMode() == GameMode.TUTORIAL) 
-                    ? GameConstants.TUTORIAL_BOND_CORPORATE_MATURITY_MONTHS 
-                    : GameConstants.COMPETITION_BOND_CORPORATE_MATURITY_MONTHS;
+                // 국채 중도 해지
+                redemptionAmount = bondService.calculateGovernmentBondEarlyWithdrawal(
+                    BigDecimal.valueOf(faceValue),
+                    baseRate,
+                    elapsedMonths,
+                    remainingMonths
+                );
+            } else {
+                // 회사채 중도 해지 (분기 이자 고려)
+                int quarterCount = elapsedMonths / 3;
+                BigDecimal receivedQuarterlyInterest = bondService.calculateCorporateBondQuarterlyInterest(
+                    BigDecimal.valueOf(faceValue)
+                ).multiply(BigDecimal.valueOf(quarterCount));
+                
+                redemptionAmount = bondService.calculateCorporateBondEarlyWithdrawal(
+                    BigDecimal.valueOf(faceValue),
+                    baseRate,
+                    elapsedMonths,
+                    remainingMonths,
+                    receivedQuarterlyInterest
+                );
             }
             
-            BondDto newBond = BondDto.builder()
-                .bondId(bondId)
-                .name(getBondName(bondId))
-                .faceValue(amount)
-                .evaluationAmount(amount)
-                .interestRate(interestRate)
-                .subscriptionRound(session.getCurrentRound())
-                .maturityRound(session.getCurrentRound() + maturityMonths)
-                .build();
+            // 반올림 처리 (BondService에서 이미 반올림되어 있지만 명시적으로 처리)
+            long redemptionAmountLong = redemptionAmount.setScale(0, java.math.RoundingMode.HALF_UP).longValue();
             
-            portfolio.getBonds().add(newBond);
-            portfolio.setCash(portfolio.getCash() - amount);
-            
-            log.info("Bond purchased: bondId={}, amount={}", bondId, amount);
+            // 이 채권을 전부 또는 일부 해지
+            if (faceValue <= remainingCancelAmount) {
+                // 전부 해지
+                totalReceivedAmount += redemptionAmountLong;
+                remainingCancelAmount -= faceValue;
+                bondsToRemove.add(bond);
+                
+                log.info("Bond fully cancelled: bondId={}, faceValue={}, received={}", 
+                    bondId, faceValue, redemptionAmountLong);
+            } else {
+                // 일부 해지 (비율 계산)
+                double ratio = (double) remainingCancelAmount / faceValue;
+                long partialRedemption = (long) (redemptionAmountLong * ratio);
+                
+                // 채권을 분할: 해지된 부분은 제거, 남은 부분은 업데이트
+                totalReceivedAmount += partialRedemption;
+                
+                // 남은 채권 금액 업데이트
+                long remainingFaceValue = faceValue - remainingCancelAmount;
+                bond.setFaceValue(remainingFaceValue);
+                bond.setEvaluationAmount(remainingFaceValue);
+                
+                log.info("Bond partially cancelled: bondId={}, cancelled={}, remaining={}, received={}", 
+                    bondId, remainingCancelAmount, remainingFaceValue, partialRedemption);
+                
+                remainingCancelAmount = 0;
+                break;
+            }
+        }
+        
+        // 제거할 채권 삭제
+        portfolio.getBonds().removeAll(bondsToRemove);
+        
+        // 현금 추가
+        portfolio.setCash(portfolio.getCash() + totalReceivedAmount);
+        
+        log.info("Bond cancellation completed: bondId={}, totalReceived={}, remainingCancel={}", 
+            bondId, totalReceivedAmount, remainingCancelAmount);
+        
+        if (remainingCancelAmount > 0) {
+            log.warn("Could not cancel full amount: bondId={}, remainingCancel={}", 
+                bondId, remainingCancelAmount);
         }
     }
     
@@ -441,8 +584,8 @@ public class ActionService {
         Long currentNav = marketEventService.getCurrentFundNav(
             fundId, session.getGameMode(), session.getCurrentRound());
         
-        // 좌수 계산 (금액 / NAV)
-        int quantity = (int) (amount / currentNav);
+        // 좌수 계산 (금액 / NAV, 반올림)
+        int quantity = (int) Math.round((double) amount / currentNav);
         if (quantity <= 0) {
             log.warn("Insufficient amount for fund: amount={}, nav={}", amount, currentNav);
             return;
@@ -498,14 +641,14 @@ public class ActionService {
     }
     
     /**
-     * 펀드 매도
+     * 펀드 매도 (금액 단위)
      */
     private void processFundSell(GameSessionDto session, PortfolioDto portfolio, Map<String, Object> sell) {
         String fundId = (String) sell.get("fundId");
-        Integer quantity = getIntValue(sell.get("quantity"));
+        Long amount = getLongValue(sell.get("amount"));
         
-        if (quantity == null || quantity <= 0) {
-            log.warn("Invalid fund quantity: {}", quantity);
+        if (amount == null || amount <= 0) {
+            log.warn("Invalid fund amount: {}", amount);
             return;
         }
         
@@ -520,16 +663,24 @@ public class ActionService {
             return;
         }
         
-        if (fund.getShares() < quantity) {
-            log.warn("Insufficient fund shares: have={}, sell={}", 
-                fund.getShares(), quantity);
-            return;
-        }
-        
         // 현재 NAV 조회
         Long currentNav = marketEventService.getCurrentFundNav(
             fundId, session.getGameMode(), session.getCurrentRound());
         
+        // 좌수 계산 (금액 / NAV, 반올림)
+        int quantity = (int) Math.round((double) amount / currentNav);
+        if (quantity <= 0) {
+            log.warn("Insufficient amount for fund sell: amount={}, nav={}", amount, currentNav);
+            return;
+        }
+        
+        if (fund.getShares() < quantity) {
+            log.warn("Insufficient fund shares: have={}, need={}", 
+                fund.getShares(), quantity);
+            return;
+        }
+        
+        // 실제 매도 금액 (좌수 * NAV)
         Long sellAmount = currentNav * quantity;
         
         // 매도 처리
@@ -547,8 +698,8 @@ public class ActionService {
         
         portfolio.setCash(portfolio.getCash() + sellAmount);
         
-        log.info("Fund sold: fundId={}, quantity={}, nav={}", 
-            fundId, quantity, currentNav);
+        log.info("Fund sold: fundId={}, requestAmount={}, quantity={}, sellAmount={}, nav={}", 
+            fundId, amount, quantity, sellAmount, currentNav);
     }
     
     /**

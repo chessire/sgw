@@ -27,8 +27,8 @@ public class SettlementService {
     
     /**
      * 라운드 시작 정산
-     * 1. 월급 지급
-     * 2. 생활비 차감
+     * 1. 월급 지급 (2라운드부터)
+     * 2. 생활비 차감 (2라운드부터)
      * 3. 보험료 차감 (가입 시)
      * 4. 대출 이자 차감 (대출 시)
      * 
@@ -41,13 +41,21 @@ public class SettlementService {
             session.getUid(), session.getCurrentRound());
         
         long cash = portfolio.getCash() != null ? portfolio.getCash() : 0L;
+        int currentRound = session.getCurrentRound();
         
-        // 1. 월급 지급
+        // 1라운드는 초기 자금만 있고 월급/생활비 처리 없음
+        if (currentRound == 1) {
+            log.info("Round 1: No salary/expense settlement (initial cash only)");
+            portfolio.setCash(cash);
+            return cash;
+        }
+        
+        // 1. 월급 지급 (2라운드부터)
         long salary = session.getMonthlySalary();
         cash += salary;
         log.debug("Salary added: +{}, cash={}", salary, cash);
         
-        // 2. 생활비 차감
+        // 2. 생활비 차감 (2라운드부터)
         long livingExpense = session.getMonthlyLiving();
         cash -= livingExpense;
         log.debug("Living expense deducted: -{}, cash={}", livingExpense, cash);

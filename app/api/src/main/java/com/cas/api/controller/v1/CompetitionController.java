@@ -299,22 +299,100 @@ public class CompetitionController {
             // 해결 방법에 따라 처리
             switch (resolutionType) {
                 case "CASH":
-                    // 현금으로 지급 (프론트에서 금액 확인 완료)
-                    // 실제 처리는 프론트가 처리할 금액을 백엔드에 전달
+                    // 현금으로 지급
+                    Long cashAmount = request.getCashAmount();
+                    if (cashAmount == null || cashAmount <= 0) {
+                        return ApiResponse.error("INVALID_CASH_AMOUNT", "현금 금액이 올바르지 않습니다.");
+                    }
+                    
+                    // 현금 지급 가능 여부 확인
+                    LifeEventService.CashPaymentResult cashCheck = 
+                        lifeEventService.checkCashPayment(portfolio, cashAmount);
+                    
+                    if (!cashCheck.isSufficient()) {
+                        result.put("resolved", false);
+                        result.put("method", "CASH");
+                        result.put("currentCash", cashCheck.getCurrentCash());
+                        result.put("additionalPaymentRequired", true);
+                        result.put("hasRedeemableAssets", lifeEventService.hasRedeemableAssets(portfolio));
+                        result.put("message", "현금이 부족합니다. 추가 지급 필요");
+                        return ApiResponse.success(result);
+                    }
+                    
+                    // 현금 지급 처리
+                    lifeEventService.processCashPayment(portfolio, cashAmount);
                     result.put("resolved", true);
                     result.put("method", "CASH");
+                    result.put("cashPaid", cashAmount);
                     break;
                     
+                case "SELL_ASSETS":
                 case "FORCE_SELL":
-                    // 투자상품 해지 (프론트에서 선택한 상품)
-                    // sellActions 처리
-                    if (request.getSellActions() != null) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> sellActions = (Map<String, Object>) request.getSellActions();
-                        actionService.processActions(session, portfolio, sellActions);
+                    // 투자상품 해지만
+                    if (request.getSellActions() == null) {
+                        return ApiResponse.error("NO_SELL_ACTIONS", "매도할 상품 정보가 없습니다.");
                     }
+                    
+                    long beforeCash = portfolio.getCash() != null ? portfolio.getCash() : 0L;
+                    
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> sellActions = (Map<String, Object>) request.getSellActions();
+                    actionService.processActions(session, portfolio, sellActions);
+                    
+                    long afterCash = portfolio.getCash() != null ? portfolio.getCash() : 0L;
+                    long assetsValue = afterCash - beforeCash;
+                    
                     result.put("resolved", true);
-                    result.put("method", "FORCE_SELL");
+                    result.put("method", "SELL_ASSETS");
+                    result.put("assetsValue", assetsValue);
+                    result.put("totalSecured", assetsValue); // 매도로 확보한 금액
+                    result.put("reason", request.getReason());
+                    result.put("hasRedeemableAssets", lifeEventService.hasRedeemableAssets(portfolio));
+                    break;
+                    
+                case "MIXED":
+                    // 현금 + 투자상품 복합
+                    Long mixedCashAmount = request.getCashAmount();
+                    if (request.getSellActions() == null) {
+                        return ApiResponse.error("NO_SELL_ACTIONS", "매도할 상품 정보가 없습니다.");
+                    }
+                    
+                    long beforeMixedCash = portfolio.getCash() != null ? portfolio.getCash() : 0L;
+                    
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> mixedSellActions = (Map<String, Object>) request.getSellActions();
+                    actionService.processActions(session, portfolio, mixedSellActions);
+                    
+                    long afterMixedCash = portfolio.getCash() != null ? portfolio.getCash() : 0L;
+                    long mixedAssetsValue = afterMixedCash - beforeMixedCash;
+                    
+                    // 필요 금액
+                    long requiredAmount = request.getShortfallAmount() != null 
+                        ? request.getShortfallAmount() 
+                        : (mixedCashAmount != null ? mixedCashAmount : 0L) + mixedAssetsValue;
+                    
+                    // 복합 해결 처리
+                    LifeEventService.MixedResolutionResult mixedResult = 
+                        lifeEventService.processMixedResolution(
+                            portfolio, 
+                            mixedCashAmount, 
+                            mixedAssetsValue, 
+                            requiredAmount,
+                            request.getReason()
+                        );
+                    
+                    result.put("resolved", mixedResult.isResolved());
+                    result.put("method", "MIXED");
+                    result.put("cashPaid", mixedCashAmount);
+                    result.put("assetsValue", mixedAssetsValue);
+                    result.put("totalSecured", mixedAssetsValue); // 매도로 확보한 금액만 (현금 제외)
+                    result.put("reason", mixedResult.getReason());
+                    
+                    if (!mixedResult.isResolved()) {
+                        result.put("additionalPaymentRequired", true);
+                        result.put("hasRedeemableAssets", lifeEventService.hasRedeemableAssets(portfolio));
+                        result.put("message", "추가 지급 필요");
+                    }
                     break;
                     
                 case "INSURANCE":

@@ -709,7 +709,7 @@ public class MarketEventService {
             
             BigDecimal changeRate = changeRates[currentRound - 1];
             
-            // 새로운 종가 계산
+            // 새로운 종가 계산 (StockService에서 이미 반올림 적용됨)
             Long newPrice = stockService.calculateClosePrice(
                 BigDecimal.valueOf(previousPrice), 
                 changeRate
@@ -799,9 +799,10 @@ public class MarketEventService {
             // 이전 NAV
             Long previousNav = fund.getCurrentNav();
             
-            // 새로운 NAV 계산
+            // 새로운 NAV 계산 (반올림)
             BigDecimal newNav = BigDecimal.valueOf(previousNav)
-                .multiply(BigDecimal.ONE.add(navChangeRate));
+                .multiply(BigDecimal.ONE.add(navChangeRate))
+                .setScale(0, java.math.RoundingMode.HALF_UP);
             Long newNavLong = newNav.longValue();
             
             // 평가금액 및 손익 업데이트
@@ -873,7 +874,8 @@ public class MarketEventService {
             currentNav = currentNav.multiply(BigDecimal.ONE.add(navChangeRate));
         }
         
-        return currentNav.longValue();
+        // 반올림 처리
+        return currentNav.setScale(0, java.math.RoundingMode.HALF_UP).longValue();
     }
     
     /**
@@ -1006,6 +1008,7 @@ public class MarketEventService {
                 currentPrice = stockService.calculateClosePrice(currentPrice, changeRate);
             }
             
+            // StockService.calculateClosePrice()에서 이미 반올림 적용됨
             return currentPrice.longValue();
         }
         

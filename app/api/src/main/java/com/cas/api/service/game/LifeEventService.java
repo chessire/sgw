@@ -226,5 +226,149 @@ public class LifeEventService {
         log.warn("Regular loan not available, suggesting alternatives");
         return "ILLEGAL_LOAN_OR_FORCE_SELL";
     }
+    
+    /**
+     * 현금 지급 가능 여부 확인
+     * 
+     * @param portfolio 포트폴리오
+     * @param requiredAmount 필요 금액
+     * @return 지급 가능 여부와 부족 금액
+     */
+    public CashPaymentResult checkCashPayment(PortfolioDto portfolio, long requiredAmount) {
+        long currentCash = portfolio.getCash() != null ? portfolio.getCash() : 0L;
+        long shortfall = requiredAmount - currentCash;
+        
+        boolean sufficient = shortfall <= 0;
+        
+        log.debug("Cash payment check: current={}, required={}, shortfall={}, sufficient={}", 
+            currentCash, requiredAmount, shortfall, sufficient);
+        
+        return new CashPaymentResult(sufficient, currentCash, shortfall);
+    }
+    
+    /**
+     * 현금 지급 처리
+     * 
+     * @param portfolio 포트폴리오
+     * @param amount 지급 금액
+     * @return 성공 여부
+     */
+    public boolean processCashPayment(PortfolioDto portfolio, long amount) {
+        long currentCash = portfolio.getCash() != null ? portfolio.getCash() : 0L;
+        
+        if (currentCash < amount) {
+            log.warn("Insufficient cash for payment: current={}, required={}", currentCash, amount);
+            return false;
+        }
+        
+        portfolio.setCash(currentCash - amount);
+        log.info("Cash payment processed: amount={}, remaining={}", amount, portfolio.getCash());
+        
+        return true;
+    }
+    
+    /**
+     * 해지 가능한 자산이 있는지 확인
+     * 
+     * @param portfolio 포트폴리오
+     * @return 해지 가능 여부
+     */
+    public boolean hasRedeemableAssets(PortfolioDto portfolio) {
+        if (portfolio == null) {
+            return false;
+        }
+        
+        boolean hasStocks = portfolio.getStocks() != null && !portfolio.getStocks().isEmpty();
+        boolean hasFunds = portfolio.getFunds() != null && !portfolio.getFunds().isEmpty();
+        boolean hasBonds = portfolio.getBonds() != null && !portfolio.getBonds().isEmpty();
+        boolean hasDeposits = portfolio.getDeposits() != null && !portfolio.getDeposits().isEmpty();
+        boolean hasSavings = portfolio.getSavings() != null && !portfolio.getSavings().isEmpty();
+        
+        boolean redeemable = hasStocks || hasFunds || hasBonds || hasDeposits || hasSavings;
+        
+        log.debug("Redeemable assets check: stocks={}, funds={}, bonds={}, deposits={}, savings={}, result={}", 
+            hasStocks, hasFunds, hasBonds, hasDeposits, hasSavings, redeemable);
+        
+        return redeemable;
+    }
+    
+    /**
+     * 복합 해결 처리 (현금 + 투자상품 매도)
+     * 
+     * @param portfolio 포트폴리오
+     * @param cashAmount 현금 지급액
+     * @param assetsValue 매도한 자산 가치
+     * @param requiredAmount 필요 금액
+     * @param reason 해결 이유
+     * @return 해결 결과
+     */
+    public MixedResolutionResult processMixedResolution(PortfolioDto portfolio, 
+                                                         Long cashAmount, 
+                                                         long assetsValue,
+                                                         long requiredAmount,
+                                                         String reason) {
+        long totalPayment = (cashAmount != null ? cashAmount : 0L) + assetsValue;
+        long shortfall = requiredAmount - totalPayment;
+        boolean resolved = shortfall <= 0;
+        
+        log.info("Mixed resolution: cash={}, assets={}, total={}, required={}, shortfall={}, reason={}", 
+            cashAmount, assetsValue, totalPayment, requiredAmount, shortfall, reason);
+        
+        // 현금 차감
+        if (cashAmount != null && cashAmount > 0) {
+            long currentCash = portfolio.getCash() != null ? portfolio.getCash() : 0L;
+            portfolio.setCash(currentCash - cashAmount);
+        }
+        
+        // 전략적 선택인지 강제 매도인지 로그
+        if ("STRATEGIC".equals(reason)) {
+            log.info("Strategic asset liquidation: user chose to sell assets despite having cash");
+        } else if ("INSUFFICIENT_CASH".equals(reason)) {
+            log.warn("Forced asset liquidation due to insufficient cash");
+        }
+        
+        return new MixedResolutionResult(resolved, totalPayment, shortfall, reason);
+    }
+    
+    /**
+     * 현금 지급 결과 DTO
+     */
+    public static class CashPaymentResult {
+        private final boolean sufficient;
+        private final long currentCash;
+        private final long shortfall;
+        
+        public CashPaymentResult(boolean sufficient, long currentCash, long shortfall) {
+            this.sufficient = sufficient;
+            this.currentCash = currentCash;
+            this.shortfall = shortfall;
+        }
+        
+        public boolean isSufficient() { return sufficient; }
+        public long getCurrentCash() { return currentCash; }
+        public long getShortfall() { return shortfall; }
+    }
+    
+    /**
+     * 복합 해결 결과 DTO
+     */
+    public static class MixedResolutionResult {
+        private final boolean resolved;
+        private final long totalPayment;
+        private final long shortfall;
+        private final String reason;
+        
+        public MixedResolutionResult(boolean resolved, long totalPayment, long shortfall, String reason) {
+            this.resolved = resolved;
+            this.totalPayment = totalPayment;
+            this.shortfall = shortfall;
+            this.reason = reason;
+        }
+        
+        public boolean isResolved() { return resolved; }
+        public long getTotalPayment() { return totalPayment; }
+        public long getShortfall() { return shortfall; }
+        public String getReason() { return reason; }
+    }
 }
 

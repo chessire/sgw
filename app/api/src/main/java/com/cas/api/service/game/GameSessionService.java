@@ -75,6 +75,58 @@ public class GameSessionService {
     }
     
     /**
+     * 게임 세션 조회 또는 생성
+     */
+    public GameSessionDto getOrCreateSession(String uid, GameMode gameMode) {
+        GameSessionDto session = getSession(uid, gameMode);
+        
+        if (session == null) {
+            log.info("Creating new session for progress tracking: uid={}, mode={}", uid, gameMode);
+            
+            session = GameSessionDto.builder()
+                .uid(uid)
+                .gameMode(gameMode)
+                .currentRound(1)
+                .startedAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .completed(false)
+                .adviceUsedCount(0)
+                .insuranceSubscribed(false)
+                .loanUsed(false)
+                .illegalLoanUsed(false)
+                .insurableEventOccurred(false)
+                // 진행 상황 플래그 초기화
+                .openingStoryCompleted(false)
+                .propensityTestCompleted(false)
+                .resultAnalysisCompleted(false)
+                .npcAssignmentCompleted(false)
+                .npcSelectionCompleted(false)
+                // 영상 시청 플래그 초기화
+                .depositVideoCompleted(false)
+                .stockVideoCompleted(false)
+                .bondVideoCompleted(false)
+                .pensionVideoCompleted(false)
+                .fundVideoCompleted(false)
+                .insuranceVideoCompleted(false)
+                // 퀴즈 정답 플래그 초기화
+                .depositQuizPassed(false)
+                .stockQuizPassed(false)
+                .bondQuizPassed(false)
+                .pensionQuizPassed(false)
+                .fundQuizPassed(false)
+                .insuranceQuizPassed(false)
+                // 업적 시스템 초기화
+                .achievedAchievements(new java.util.HashSet<>())
+                .achievementProgress(new java.util.HashMap<>())
+                .build();
+            
+            updateSession(uid, gameMode, session);
+        }
+        
+        return session;
+    }
+    
+    /**
      * 게임 세션 업데이트
      */
     public void updateSession(String uid, GameMode gameMode, GameSessionDto sessionData) {
@@ -85,7 +137,7 @@ public class GameSessionService {
         sessionData.setUpdatedAt(LocalDateTime.now());
         
         // TTL 결정 (완료된 게임은 7일, 진행 중은 24시간)
-        int ttl = sessionData.getCompleted() 
+        int ttl = (sessionData.getCompleted() != null && sessionData.getCompleted()) 
             ? GameConstants.TTL_COMPLETED_GAME 
             : GameConstants.TTL_ACTIVE_SESSION;
         

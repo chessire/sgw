@@ -5,8 +5,13 @@ import com.cas.api.dto.domain.GameSessionDto;
 import com.cas.api.dto.domain.LoanDto;
 import com.cas.api.dto.domain.PortfolioDto;
 import com.cas.api.dto.request.BuyAdditionalInfoRequest;
+import com.cas.api.dto.request.CompleteVideoRequest;
+import com.cas.api.dto.request.NpcRequest;
+import com.cas.api.dto.request.PropensityResultRequest;
+import com.cas.api.dto.request.PropensityTestRequest;
 import com.cas.api.dto.request.ResolveLifeEventRequest;
 import com.cas.api.dto.request.StartGameRequest;
+import com.cas.api.dto.request.SubmitQuizRequest;
 import com.cas.api.dto.request.UseAdviceRequest;
 import com.cas.api.dto.response.PortfolioResponseDto;
 import com.cas.api.dto.response.RoundStartDto;
@@ -38,6 +43,7 @@ public class TutorialController {
     private final MarketEventService marketEventService;
     private final AdviceService adviceService;
     private final ClueService clueService;
+    private final AchievementService achievementService;
     private final ActionService actionService;
     private final LifeEventService lifeEventService;
     private final RankingService rankingService;
@@ -207,6 +213,9 @@ public class TutorialController {
             if (!success) {
                 return ApiResponse.error("ADVICE_USE_FAILED", "조언 사용에 실패했습니다.");
             }
+            
+            // 업적 체크: 조언 수집가 (3회 사용)
+            achievementService.checkAchievements(session);
             
             // 세션 업데이트
             gameSessionService.updateSession(uid, GameMode.TUTORIAL, session);
@@ -467,6 +476,11 @@ public class TutorialController {
             
             // 초기 자본 (튜토리얼은 가변: session에 저장된 값)
             long initialCash = session.getInitialCash() != null ? session.getInitialCash() : 0L;
+            
+            // 업적 체크 (게임 완료 시 모든 업적 체크)
+            achievementService.checkAchievements(session);
+            achievementService.checkFinancialComprehensive(session);
+            gameSessionService.updateSession(uid, GameMode.TUTORIAL, session);
             
             // 점수 계산
             RankingService.ScoreResult scoreResult = rankingService.calculateScore(session, portfolio, initialCash);
@@ -766,6 +780,292 @@ public class TutorialController {
             .marketMovement(marketMovement)
             .lifeEvent(lifeEvent)
             .build();
+    }
+    
+    /**
+     * 게임 초기화 (강제 종료)
+     * DELETE /api/v1/tutorial/reset
+     */
+    @DeleteMapping("/reset")
+    public ApiResponse<Map<String, Object>> resetGame(@RequestHeader("uid") String uid) {
+        
+        log.info("Resetting tutorial game: uid={}", uid);
+        
+        try {
+            // 세션 삭제
+            gameSessionService.deleteSession(uid, GameMode.TUTORIAL);
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("reset", true);
+            data.put("message", "게임이 초기화되었습니다. 새로 시작할 수 있습니다.");
+            
+            log.info("Tutorial game reset successfully: uid={}", uid);
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to reset tutorial game: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "게임 초기화 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 오프닝 스토리 완료
+     * POST /api/v1/tutorial/complete-opening-story
+     */
+    @PostMapping("/complete-opening-story")
+    public ApiResponse<Map<String, Object>> completeOpeningStory(@RequestHeader("uid") String uid) {
+        
+        log.info("Completing opening story: uid={}", uid);
+        
+        try {
+            GameSessionDto session = gameSessionService.getSession(uid, GameMode.TUTORIAL);
+            if (session == null) {
+                // 세션이 없으면 새로 생성
+                session = GameSessionDto.builder()
+                    .uid(uid)
+                    .gameMode(GameMode.TUTORIAL)
+                    .completed(false)
+                    .openingStoryCompleted(true)
+                    .build();
+            } else {
+                session.setOpeningStoryCompleted(true);
+            }
+            
+            gameSessionService.updateSession(uid, GameMode.TUTORIAL, session);
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("completed", true);
+            
+            log.info("Opening story completed: uid={}", uid);
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to complete opening story: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "오프닝 스토리 완료 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 재무성향검사 제출
+     * POST /api/v1/tutorial/submit-propensity-test
+     */
+    @PostMapping("/submit-propensity-test")
+    public ApiResponse<Map<String, Object>> submitPropensityTest(
+            @RequestHeader("uid") String uid,
+            @RequestBody PropensityTestRequest request) {
+        
+        log.info("Submitting propensity test: uid={}, answers={}", uid, request.getAnswers());
+        
+        try {
+            GameSessionDto session = gameSessionService.getSession(uid, GameMode.TUTORIAL);
+            if (session == null) {
+                return ApiResponse.error("SESSION_NOT_FOUND", "게임 세션을 찾을 수 없습니다.");
+            }
+            
+            session.setPropensityTestAnswers(request.getAnswers());
+            session.setPropensityTestCompleted(true);
+            
+            gameSessionService.updateSession(uid, GameMode.TUTORIAL, session);
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("submitted", true);
+            data.put("answers", request.getAnswers());
+            
+            log.info("Propensity test submitted: uid={}, answerCount={}", uid, request.getAnswers().size());
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to submit propensity test: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "재무성향검사 제출 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 재무성향 결과 저장
+     * POST /api/v1/tutorial/save-propensity-result
+     */
+    @PostMapping("/save-propensity-result")
+    public ApiResponse<Map<String, Object>> savePropensityResult(
+            @RequestHeader("uid") String uid,
+            @RequestBody PropensityResultRequest request) {
+        
+        log.info("Saving propensity result: uid={}, type={}", uid, request.getPropensityType());
+        
+        try {
+            GameSessionDto session = gameSessionService.getSession(uid, GameMode.TUTORIAL);
+            if (session == null) {
+                return ApiResponse.error("SESSION_NOT_FOUND", "게임 세션을 찾을 수 없습니다.");
+            }
+            
+            session.setPropensityType(request.getPropensityType());
+            session.setResultAnalysisCompleted(true);
+            
+            gameSessionService.updateSession(uid, GameMode.TUTORIAL, session);
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("saved", true);
+            data.put("propensityType", request.getPropensityType());
+            
+            log.info("Propensity result saved: uid={}, type={}", uid, request.getPropensityType());
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to save propensity result: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "재무성향 결과 저장 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * NPC 배정
+     * POST /api/v1/tutorial/assign-npc
+     */
+    @PostMapping("/assign-npc")
+    public ApiResponse<Map<String, Object>> assignNpc(
+            @RequestHeader("uid") String uid,
+            @RequestBody NpcRequest request) {
+        
+        log.info("Assigning NPC: uid={}, npcType={}", uid, request.getNpcType());
+        
+        try {
+            GameSessionDto session = gameSessionService.getSession(uid, GameMode.TUTORIAL);
+            if (session == null) {
+                return ApiResponse.error("SESSION_NOT_FOUND", "게임 세션을 찾을 수 없습니다.");
+            }
+            
+            session.setNpcType(request.getNpcType());
+            session.setNpcAssignmentCompleted(true);
+            
+            gameSessionService.updateSession(uid, GameMode.TUTORIAL, session);
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("assigned", true);
+            data.put("npcType", request.getNpcType());
+            data.put("propensityType", session.getPropensityType());
+            
+            log.info("NPC assigned: uid={}, npcType={}", uid, request.getNpcType());
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to assign NPC: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "NPC 배정 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 교육 영상 시청 완료
+     * POST /api/v1/tutorial/complete-video
+     */
+    @PostMapping("/complete-video")
+    public ApiResponse<Map<String, Object>> completeVideo(
+            @RequestHeader("uid") String uid,
+            @RequestBody CompleteVideoRequest request) {
+        
+        log.info("Completing video: uid={}, videoType={}", uid, request.getVideoType());
+        
+        try {
+            GameSessionDto session = gameSessionService.getOrCreateSession(uid, GameMode.TUTORIAL);
+            
+            // 영상 타입에 따라 해당 필드 업데이트
+            switch (request.getVideoType().toUpperCase()) {
+                case "DEPOSIT":
+                    session.setDepositVideoCompleted(true);
+                    break;
+                case "STOCK":
+                    session.setStockVideoCompleted(true);
+                    break;
+                case "BOND":
+                    session.setBondVideoCompleted(true);
+                    break;
+                case "PENSION":
+                    session.setPensionVideoCompleted(true);
+                    break;
+                case "FUND":
+                    session.setFundVideoCompleted(true);
+                    break;
+                case "INSURANCE":
+                    session.setInsuranceVideoCompleted(true);
+                    break;
+                default:
+                    return ApiResponse.error("INVALID_VIDEO_TYPE", "올바르지 않은 영상 타입입니다: " + request.getVideoType());
+            }
+            
+            // 업적 체크: 금융 입문자 (모든 영상 시청)
+            achievementService.checkAchievements(session);
+            
+            gameSessionService.updateSession(uid, GameMode.TUTORIAL, session);
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("completed", true);
+            data.put("videoType", request.getVideoType());
+            
+            log.info("Video completed: uid={}, videoType={}", uid, request.getVideoType());
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to complete video: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "영상 시청 완료 처리 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 우대금리 퀴즈 정답 제출
+     * POST /api/v1/tutorial/submit-quiz
+     */
+    @PostMapping("/submit-quiz")
+    public ApiResponse<Map<String, Object>> submitQuiz(
+            @RequestHeader("uid") String uid,
+            @RequestBody SubmitQuizRequest request) {
+        
+        log.info("Submitting quiz: uid={}, productType={}", uid, request.getProductType());
+        
+        try {
+            GameSessionDto session = gameSessionService.getOrCreateSession(uid, GameMode.TUTORIAL);
+            
+            // 상품 타입에 따라 우대금리 플래그 설정 (무조건 정답 처리)
+            switch (request.getProductType().toUpperCase()) {
+                case "DEPOSIT":
+                    session.setDepositQuizPassed(true);
+                    break;
+                case "STOCK":
+                    session.setStockQuizPassed(true);
+                    break;
+                case "BOND":
+                    session.setBondQuizPassed(true);
+                    break;
+                case "PENSION":
+                    session.setPensionQuizPassed(true);
+                    break;
+                case "FUND":
+                    session.setFundQuizPassed(true);
+                    break;
+                case "INSURANCE":
+                    session.setInsuranceQuizPassed(true);
+                    break;
+                default:
+                    return ApiResponse.error("INVALID_PRODUCT_TYPE", "올바르지 않은 상품 타입입니다: " + request.getProductType());
+            }
+            
+            gameSessionService.updateSession(uid, GameMode.TUTORIAL, session);
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("correct", true);
+            data.put("preferentialApplied", true);
+            data.put("productType", request.getProductType());
+            
+            log.info("Quiz passed: uid={}, productType={}, preferential applied", uid, request.getProductType());
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to submit quiz: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "퀴즈 제출 실패: " + e.getMessage());
+        }
     }
     
     /**

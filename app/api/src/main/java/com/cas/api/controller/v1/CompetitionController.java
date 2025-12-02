@@ -5,6 +5,7 @@ import com.cas.api.dto.domain.GameSessionDto;
 import com.cas.api.dto.domain.LoanDto;
 import com.cas.api.dto.domain.PortfolioDto;
 import com.cas.api.dto.request.BuyAdditionalInfoRequest;
+import com.cas.api.dto.request.NpcRequest;
 import com.cas.api.dto.request.ResolveLifeEventRequest;
 import com.cas.api.dto.request.UseAdviceRequest;
 import com.cas.api.dto.response.PortfolioResponseDto;
@@ -41,6 +42,7 @@ public class CompetitionController {
     private final ActionService actionService;
     private final LifeEventService lifeEventService;
     private final RankingService rankingService;
+    private final AchievementService achievementService;
     private final java.util.Random random = new java.util.Random();
     
     /**
@@ -469,6 +471,11 @@ public class CompetitionController {
             // 초기 자본 (세션에 저장된 값 사용)
             long initialCash = session.getInitialCash() != null ? session.getInitialCash() : 5000000L;
             
+            // 업적 체크 (게임 완료 시 모든 업적 체크)
+            achievementService.checkAchievements(session);
+            achievementService.checkFinancialComprehensive(session);
+            gameSessionService.updateSession(uid, GameMode.COMPETITION, session);
+            
             // 점수 계산
             RankingService.ScoreResult scoreResult = rankingService.calculateScore(session, portfolio, initialCash);
             
@@ -773,6 +780,76 @@ public class CompetitionController {
     }
     
     /**
+     * 게임 초기화 (강제 종료)
+     * DELETE /api/v1/competition/reset
+     */
+    @DeleteMapping("/reset")
+    public ApiResponse<Map<String, Object>> resetGame(@RequestHeader("uid") String uid) {
+        
+        log.info("Resetting competition game: uid={}", uid);
+        
+        try {
+            // 세션 삭제
+            gameSessionService.deleteSession(uid, GameMode.COMPETITION);
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("reset", true);
+            data.put("message", "게임이 초기화되었습니다. 새로 시작할 수 있습니다.");
+            
+            log.info("Competition game reset successfully: uid={}", uid);
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to reset competition game: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "게임 초기화 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * NPC 선택
+     * POST /api/v1/competition/select-npc
+     */
+    @PostMapping("/select-npc")
+    public ApiResponse<Map<String, Object>> selectNpc(
+            @RequestHeader("uid") String uid,
+            @RequestBody NpcRequest request) {
+        
+        log.info("Selecting NPC: uid={}, npcType={}", uid, request.getNpcType());
+        
+        try {
+            GameSessionDto session = gameSessionService.getSession(uid, GameMode.COMPETITION);
+            if (session == null) {
+                // 세션이 없으면 새로 생성
+                session = GameSessionDto.builder()
+                    .uid(uid)
+                    .gameMode(GameMode.COMPETITION)
+                    .completed(false)
+                    .npcType(request.getNpcType())
+                    .npcSelectionCompleted(true)
+                    .build();
+            } else {
+                session.setNpcType(request.getNpcType());
+                session.setNpcSelectionCompleted(true);
+            }
+            
+            gameSessionService.updateSession(uid, GameMode.COMPETITION, session);
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("selected", true);
+            data.put("npcType", request.getNpcType());
+            
+            log.info("NPC selected: uid={}, npcType={}", uid, request.getNpcType());
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to select NPC: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "NPC 선택 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
      * Portfolio Summary 응답 생성 (간단 버전)
      */
     private Map<String, Object> buildPortfolioSummaryResponse(PortfolioDto portfolio) {
@@ -782,6 +859,486 @@ public class CompetitionController {
         summary.put("netWorth", portfolio.getNetWorth());
         summary.put("allocation", portfolio.getAllocation());
         return summary;
+    }
+    
+    /**
+     * 랭킹 조회 (목업 데이터)
+     * GET /api/v1/competition/ranking
+     * 
+     * TODO: DB 연동 시 실제 랭킹 데이터로 대체 필요
+     */
+    @GetMapping("/ranking")
+    public ApiResponse<Map<String, Object>> getRanking(@RequestHeader("uid") String uid) {
+        
+        log.info("Getting ranking (MOCK): uid={}", uid);
+        
+        try {
+            // 목업 랭킹 데이터 생성
+            List<Map<String, Object>> mockRankings = Arrays.asList(
+                createMockRankingEntry(1, "금융천재", 2847.5, 11780000L, "135.6%", false),
+                createMockRankingEntry(2, "투자고수", 2654.3, 10850000L, "117.0%", false),
+                createMockRankingEntry(3, "재테크왕", 2512.8, 10240000L, "104.8%", true),
+                createMockRankingEntry(4, "머니메이커", 2389.2, 9685000L, "93.7%", false),
+                createMockRankingEntry(5, "자산가", 2276.4, 9120000L, "82.4%", false),
+                createMockRankingEntry(6, "포트폴리오마스터", 2165.7, 8654000L, "73.1%", false),
+                createMockRankingEntry(7, "펀드러너", 2058.3, 8245000L, "64.9%", false),
+                createMockRankingEntry(8, "리스크헌터", 1954.2, 7890000L, "57.8%", false),
+                createMockRankingEntry(9, "배당수집가", 1856.8, 7512000L, "50.2%", false),
+                createMockRankingEntry(10, "장기투자자", 1765.4, 7185000L, "43.7%", false)
+            );
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("rankings", mockRankings);
+            data.put("myRank", 3);
+            data.put("totalPlayers", 150);
+            data.put("updateTime", java.time.LocalDateTime.now().toString());
+            data.put("isMockData", true);
+            
+            log.info("Ranking retrieved (MOCK): myRank=3, totalPlayers=150");
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to get ranking: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "랭킹 조회 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 다른 사용자 포트폴리오 조회 (목업 데이터)
+     * GET /api/v1/competition/portfolio/{targetUid}
+     * 
+     * TODO: DB 연동 시 실제 포트폴리오 데이터로 대체 필요
+     */
+    @GetMapping("/portfolio/{targetUid}")
+    public ApiResponse<Map<String, Object>> getUserPortfolio(
+            @RequestHeader("uid") String uid,
+            @PathVariable String targetUid) {
+        
+        log.info("Getting user portfolio (MOCK): requester={}, target={}", uid, targetUid);
+        
+        try {
+            // 목업 포트폴리오 데이터 생성
+            Map<String, Object> mockPortfolio = createMockPortfolioData(targetUid);
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("uid", targetUid);
+            data.put("nickname", mockPortfolio.get("nickname"));
+            data.put("rank", mockPortfolio.get("rank"));
+            data.put("totalScore", mockPortfolio.get("totalScore"));
+            data.put("returnRate", mockPortfolio.get("returnRate"));
+            data.put("finalNetWorth", mockPortfolio.get("finalNetWorth"));
+            data.put("portfolio", mockPortfolio.get("portfolio"));
+            data.put("isMockData", true);
+            
+            log.info("Portfolio retrieved (MOCK): target={}, rank={}", targetUid, mockPortfolio.get("rank"));
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to get user portfolio: requester={}, target={}", uid, targetUid, e);
+            return ApiResponse.error("FAILED", "포트폴리오 조회 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 목업 포트폴리오 데이터 생성 (uid별로 다른 스타일)
+     */
+    private Map<String, Object> createMockPortfolioData(String targetUid) {
+        // targetUid의 해시값으로 일관된 데이터 생성
+        int userType = Math.abs(targetUid.hashCode() % 3);
+        
+        Map<String, Object> data = new HashMap<>();
+        
+        switch (userType) {
+            case 0: // 공격형 투자자 (주식/펀드 중심)
+                data.put("nickname", "주식고수");
+                data.put("rank", 1);
+                data.put("totalScore", 2847.5);
+                data.put("returnRate", "135.6%");
+                data.put("finalNetWorth", 11780000L);
+                data.put("portfolio", createAggressivePortfolio());
+                break;
+            case 1: // 균형형 투자자
+                data.put("nickname", "균형투자자");
+                data.put("rank", 5);
+                data.put("totalScore", 2276.4);
+                data.put("returnRate", "82.4%");
+                data.put("finalNetWorth", 9120000L);
+                data.put("portfolio", createBalancedPortfolio());
+                break;
+            case 2: // 안정형 투자자 (예적금/채권 중심)
+                data.put("nickname", "안정추구");
+                data.put("rank", 8);
+                data.put("totalScore", 1954.2);
+                data.put("returnRate", "57.8%");
+                data.put("finalNetWorth", 7890000L);
+                data.put("portfolio", createConservativePortfolio());
+                break;
+        }
+        
+        return data;
+    }
+    
+    /**
+     * 공격형 포트폴리오 (주식/펀드 80%)
+     */
+    private Map<String, Object> createAggressivePortfolio() {
+        Map<String, Object> portfolio = new HashMap<>();
+        
+        // Summary
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("totalAssets", 11780000L);
+        summary.put("totalLiabilities", 0L);
+        summary.put("netWorth", 11780000L);
+        
+        Map<String, Object> allocation = new HashMap<>();
+        allocation.put("cashRatio", 0.15);
+        allocation.put("depositRatio", 0.05);
+        allocation.put("savingRatio", 0.0);
+        allocation.put("bondRatio", 0.0);
+        allocation.put("stockRatio", 0.55);
+        allocation.put("fundRatio", 0.25);
+        allocation.put("pensionRatio", 0.0);
+        summary.put("allocation", allocation);
+        portfolio.put("summary", summary);
+        
+        // Holdings
+        Map<String, Object> holdings = new HashMap<>();
+        holdings.put("cash", 1767000L);
+        
+        // 예금 (소량)
+        holdings.put("deposits", Arrays.asList(
+            Map.of(
+                "depositId", "DEP_1",
+                "productKey", "DEPOSIT",
+                "name", "정기예금",
+                "principal", 500000L,
+                "balance", 589000L,
+                "expectedMaturityAmount", 589000L,
+                "interestRate", 2.5,
+                "subscriptionRound", 1,
+                "maturityRound", 7,
+                "accumulatedInterest", 89000L
+            )
+        ));
+        
+        holdings.put("savings", Arrays.asList());
+        holdings.put("bonds", Arrays.asList());
+        
+        // 주식 (대량 보유, 고수익)
+        holdings.put("stocks", Arrays.asList(
+            Map.of(
+                "stockId", "STOCK_01",
+                "name", "에버반도체",
+                "quantity", 50,
+                "avgPrice", 95000L,
+                "currentPrice", 145000L,
+                "evaluationAmount", 7250000L,
+                "profitLoss", 2500000L,
+                "returnRate", 0.526
+            ),
+            Map.of(
+                "stockId", "STOCK_03",
+                "name", "온라인뱅크",
+                "quantity", 30,
+                "avgPrice", 28000L,
+                "currentPrice", 38500L,
+                "evaluationAmount", 1155000L,
+                "profitLoss", 315000L,
+                "returnRate", 0.375
+            )
+        ));
+        
+        // 펀드 (중간 보유)
+        holdings.put("funds", Arrays.asList(
+            Map.of(
+                "fundId", "FUND_02",
+                "name", "IT성장펀드",
+                "shares", 152,
+                "avgNav", 10200L,
+                "currentNav", 12850L,
+                "evaluationAmount", 1953200L,
+                "profitLoss", 402800L,
+                "returnRate", 0.26
+            )
+        ));
+        
+        holdings.put("pensions", Arrays.asList());
+        holdings.put("loans", Arrays.asList());
+        
+        portfolio.put("holdings", holdings);
+        
+        return portfolio;
+    }
+    
+    /**
+     * 균형형 포트폴리오 (모든 상품 골고루)
+     */
+    private Map<String, Object> createBalancedPortfolio() {
+        Map<String, Object> portfolio = new HashMap<>();
+        
+        // Summary
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("totalAssets", 9120000L);
+        summary.put("totalLiabilities", 0L);
+        summary.put("netWorth", 9120000L);
+        
+        Map<String, Object> allocation = new HashMap<>();
+        allocation.put("cashRatio", 0.25);
+        allocation.put("depositRatio", 0.12);
+        allocation.put("savingRatio", 0.18);
+        allocation.put("bondRatio", 0.10);
+        allocation.put("stockRatio", 0.20);
+        allocation.put("fundRatio", 0.10);
+        allocation.put("pensionRatio", 0.05);
+        summary.put("allocation", allocation);
+        portfolio.put("summary", summary);
+        
+        // Holdings
+        Map<String, Object> holdings = new HashMap<>();
+        holdings.put("cash", 2280000L);
+        
+        // 예금
+        holdings.put("deposits", Arrays.asList(
+            Map.of(
+                "depositId", "DEP_1",
+                "productKey", "DEPOSIT",
+                "name", "정기예금",
+                "principal", 1000000L,
+                "balance", 1094400L,
+                "expectedMaturityAmount", 1094400L,
+                "interestRate", 2.5,
+                "subscriptionRound", 2,
+                "maturityRound", 8,
+                "accumulatedInterest", 94400L
+            )
+        ));
+        
+        // 적금
+        Map<String, Object> saving1 = new HashMap<>();
+        saving1.put("savingId", "SAV_1");
+        saving1.put("productKey", "SAVING_A");
+        saving1.put("name", "적금 A");
+        saving1.put("monthlyAmount", 150000L);
+        saving1.put("balance", 1638000L);
+        saving1.put("expectedMaturityAmount", 1638000L);
+        saving1.put("interestRate", 2.6);
+        saving1.put("subscriptionRound", 2);
+        saving1.put("maturityRound", 12);
+        saving1.put("paymentCount", 11);
+        saving1.put("accumulatedInterest", 138000L);
+        holdings.put("savings", Arrays.asList(saving1));
+        
+        // 채권
+        holdings.put("bonds", Arrays.asList(
+            Map.of(
+                "bondId", "BOND_1",
+                "productKey", "NATIONAL_BOND",
+                "name", "국채",
+                "principal", 900000L,
+                "balance", 912000L,
+                "expectedMaturityAmount", 912000L,
+                "interestRate", 3.0,
+                "subscriptionRound", 5,
+                "maturityRound", 11,
+                "accumulatedInterest", 12000L
+            )
+        ));
+        
+        // 주식
+        holdings.put("stocks", Arrays.asList(
+            Map.of(
+                "stockId", "STOCK_02",
+                "name", "글로벌조선",
+                "quantity", 20,
+                "avgPrice", 85000L,
+                "currentPrice", 95000L,
+                "evaluationAmount", 1900000L,
+                "profitLoss", 200000L,
+                "returnRate", 0.118
+            )
+        ));
+        
+        // 펀드
+        holdings.put("funds", Arrays.asList(
+            Map.of(
+                "fundId", "FUND_01",
+                "name", "안정형펀드",
+                "shares", 85,
+                "avgNav", 10500L,
+                "currentNav", 11200L,
+                "evaluationAmount", 952000L,
+                "profitLoss", 59500L,
+                "returnRate", 0.067
+            )
+        ));
+        
+        // 연금
+        holdings.put("pensions", Arrays.asList(
+            Map.of(
+                "pensionId", "PENSION_1",
+                "productKey", "PERSONAL_PENSION",
+                "name", "개인연금(채권형)",
+                "totalContribution", 400000L,
+                "balance", 455600L,
+                "expectedMaturityValue", 455600L,
+                "returnRate", 3.2,
+                "subscriptionRound", 3,
+                "contributionCount", 10,
+                "accumulatedReturn", 55600L
+            )
+        ));
+        
+        holdings.put("loans", Arrays.asList());
+        
+        portfolio.put("holdings", holdings);
+        
+        return portfolio;
+    }
+    
+    /**
+     * 안정형 포트폴리오 (예적금/채권 70%)
+     */
+    private Map<String, Object> createConservativePortfolio() {
+        Map<String, Object> portfolio = new HashMap<>();
+        
+        // Summary
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("totalAssets", 7890000L);
+        summary.put("totalLiabilities", 0L);
+        summary.put("netWorth", 7890000L);
+        
+        Map<String, Object> allocation = new HashMap<>();
+        allocation.put("cashRatio", 0.20);
+        allocation.put("depositRatio", 0.25);
+        allocation.put("savingRatio", 0.30);
+        allocation.put("bondRatio", 0.15);
+        allocation.put("stockRatio", 0.05);
+        allocation.put("fundRatio", 0.05);
+        allocation.put("pensionRatio", 0.0);
+        summary.put("allocation", allocation);
+        portfolio.put("summary", summary);
+        
+        // Holdings
+        Map<String, Object> holdings = new HashMap<>();
+        holdings.put("cash", 1578000L);
+        
+        // 예금 (대량)
+        holdings.put("deposits", Arrays.asList(
+            Map.of(
+                "depositId", "DEP_1",
+                "productKey", "DEPOSIT",
+                "name", "정기예금",
+                "principal", 1800000L,
+                "balance", 1972500L,
+                "expectedMaturityAmount", 1972500L,
+                "interestRate", 2.5,
+                "subscriptionRound", 1,
+                "maturityRound", 7,
+                "accumulatedInterest", 172500L
+            )
+        ));
+        
+        // 적금 (대량)
+        Map<String, Object> conservativeSaving1 = new HashMap<>();
+        conservativeSaving1.put("savingId", "SAV_1");
+        conservativeSaving1.put("productKey", "SAVING_A");
+        conservativeSaving1.put("name", "적금 A");
+        conservativeSaving1.put("monthlyAmount", 200000L);
+        conservativeSaving1.put("balance", 2367200L);
+        conservativeSaving1.put("expectedMaturityAmount", 2367200L);
+        conservativeSaving1.put("interestRate", 2.6);
+        conservativeSaving1.put("subscriptionRound", 1);
+        conservativeSaving1.put("maturityRound", 12);
+        conservativeSaving1.put("paymentCount", 12);
+        conservativeSaving1.put("accumulatedInterest", 167200L);
+        holdings.put("savings", Arrays.asList(conservativeSaving1));
+        
+        // 채권
+        holdings.put("bonds", Arrays.asList(
+            Map.of(
+                "bondId", "BOND_1",
+                "productKey", "NATIONAL_BOND",
+                "name", "국채",
+                "principal", 600000L,
+                "balance", 1183500L,
+                "expectedMaturityAmount", 1183500L,
+                "interestRate", 3.0,
+                "subscriptionRound", 3,
+                "maturityRound", 9,
+                "accumulatedInterest", 83500L
+            ),
+            Map.of(
+                "bondId", "BOND_2",
+                "productKey", "CORPORATE_BOND",
+                "name", "회사채",
+                "principal", 500000L,
+                "balance", 594500L,
+                "expectedMaturityAmount", 594500L,
+                "interestRate", 3.5,
+                "subscriptionRound", 6,
+                "maturityRound", 12,
+                "accumulatedInterest", 94500L
+            )
+        ));
+        
+        // 주식 (소량)
+        holdings.put("stocks", Arrays.asList(
+            Map.of(
+                "stockId", "STOCK_05",
+                "name", "포용생명",
+                "quantity", 5,
+                "avgPrice", 72000L,
+                "currentPrice", 78000L,
+                "evaluationAmount", 390000L,
+                "profitLoss", 30000L,
+                "returnRate", 0.083
+            )
+        ));
+        
+        // 펀드 (소량)
+        holdings.put("funds", Arrays.asList(
+            Map.of(
+                "fundId", "FUND_03",
+                "name", "배당형펀드",
+                "shares", 38,
+                "avgNav", 10000L,
+                "currentNav", 10500L,
+                "evaluationAmount", 399000L,
+                "profitLoss", 19000L,
+                "returnRate", 0.05
+            )
+        ));
+        
+        holdings.put("pensions", Arrays.asList());
+        holdings.put("loans", Arrays.asList());
+        
+        portfolio.put("holdings", holdings);
+        
+        return portfolio;
+    }
+    
+    /**
+     * 목업 랭킹 엔트리 생성 헬퍼 메서드
+     */
+    private Map<String, Object> createMockRankingEntry(
+            int rank, 
+            String nickname, 
+            double totalScore,
+            long netWorth,
+            String returnRate,
+            boolean isMe) {
+        
+        Map<String, Object> entry = new HashMap<>();
+        entry.put("rank", rank);
+        entry.put("nickname", nickname);
+        entry.put("totalScore", Math.ceil(totalScore)); // 소수점 올림
+        entry.put("finalNetWorth", netWorth);
+        entry.put("returnRate", returnRate);
+        entry.put("isMe", isMe);
+        
+        return entry;
     }
 }
 

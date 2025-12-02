@@ -37,6 +37,11 @@ public class SavingDto {
     private Long balance;
     
     /**
+     * 예상 만기금액 (만기 시 수령 예상액)
+     */
+    private Long expectedMaturityAmount;
+    
+    /**
      * 이자율
      */
     private BigDecimal interestRate;

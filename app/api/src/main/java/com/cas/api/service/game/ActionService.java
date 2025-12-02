@@ -110,11 +110,19 @@ public class ActionService {
             int maxRound = session.getGameMode().getMaxRounds();
             int maturityRound = Math.min(calculatedMaturity, maxRound);
             
+            // 예상 만기금액 계산 (우대금리 적용)
+            BigDecimal expectedMaturity = depositService.calculateDepositMaturity(
+                BigDecimal.valueOf(amount),
+                GameConstants.DEPOSIT_BASE_RATE,
+                maturityMonths
+            );
+            
             DepositDto newDeposit = DepositDto.builder()
                 .productKey(productKey)
                 .name(getDepositName(productKey))
                 .principal(amount)
                 .balance(amount)
+                .expectedMaturityAmount(expectedMaturity.longValue())
                 .interestRate(GameConstants.DEPOSIT_BASE_RATE)
                 .subscriptionRound(session.getCurrentRound())
                 .maturityRound(maturityRound)
@@ -175,11 +183,19 @@ public class ActionService {
             int maxRound = session.getGameMode().getMaxRounds();
             int maturityRound = Math.min(calculatedMaturity, maxRound);
             
+            // 예상 만기금액 계산 (우대금리 적용)
+            BigDecimal expectedMaturity = depositService.calculateSavingMaturity(
+                BigDecimal.valueOf(monthlyAmount),
+                interestRate,
+                maturityMonths
+            );
+            
             SavingDto newSaving = SavingDto.builder()
                 .productKey(productKey)
                 .name(getSavingName(productKey))
                 .monthlyAmount(monthlyAmount)
                 .balance(monthlyAmount)
+                .expectedMaturityAmount(expectedMaturity.longValue())
                 .interestRate(interestRate)
                 .subscriptionRound(session.getCurrentRound())
                 .maturityRound(maturityRound)

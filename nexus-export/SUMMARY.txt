@@ -1,0 +1,40 @@
+﻿========================================
+NEXUS UPLOAD SUMMARY
+========================================
+Collection Time: 2025-12-03 17:08:33
+
+[STATISTICS]
+- Total Files Copied: 540
+- JAR files: 64
+- POM files: 69
+- Sources: 49
+- Javadocs: 49
+
+[COLLECTED]
+- Dependencies: 56
+- Plugins: 8
+- Parent POMs/BOMs: 5
+
+[MISSING]
+- Missing Artifacts: 15
+  See MISSING.txt for details
+
+[DIRECTORY STRUCTURE]
+repository/
+  org/springframework/spring-core/5.3.39/
+    spring-core-5.3.39.jar
+    spring-core-5.3.39.pom
+    spring-core-5.3.39-sources.jar
+    spring-core-5.3.39-javadoc.jar
+    spring-core-5.3.39.jar.sha1
+    ...
+  org/apache/maven/plugins/maven-compiler-plugin/3.11.0/
+    maven-compiler-plugin-3.11.0.jar
+    maven-compiler-plugin-3.11.0.pom
+    ...
+
+[HOW TO USE]
+1. Copy 'repository' folder to Nexus or target .m2/repository
+2. Or upload via Nexus Admin Console
+
+========================================

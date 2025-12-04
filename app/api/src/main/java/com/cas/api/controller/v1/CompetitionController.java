@@ -12,6 +12,7 @@ import com.cas.api.dto.response.PortfolioResponseDto;
 import com.cas.api.dto.response.RoundStartDto;
 import com.cas.api.dto.response.RoundStateDto;
 import com.cas.api.dto.response.SettlementDto;
+import com.cas.api.dto.response.StartSettlementResultDto;
 import com.cas.api.enums.GameMode;
 import com.cas.api.service.financial.PortfolioService;
 import com.cas.api.service.game.*;
@@ -165,8 +166,9 @@ public class CompetitionController {
             roundService.endRound(session, portfolio);
             
             // 게임이 완료되지 않았으면 다음 라운드 시작
+            StartSettlementResultDto settlementResult = null;
             if (!session.getCompleted()) {
-                roundService.startRound(session, portfolio);
+                settlementResult = roundService.startRound(session, portfolio);
                 portfolioService.updatePortfolioSummary(portfolio);
             }
             
@@ -176,8 +178,15 @@ public class CompetitionController {
             // 응답 생성
             RoundStateDto response = buildRoundState(session, portfolio);
             
-            log.info("Competition round proceeded: uid={}, round={}, completed={}", 
-                uid, session.getCurrentRound(), session.getCompleted());
+            // 자동납입 실패 정보 추가
+            if (settlementResult != null && settlementResult.hasFailures()) {
+                response.getRoundStart().setAutoPayments(settlementResult.getAutoPayments());
+                response.getRoundStart().setAutoPaymentFailures(settlementResult.getAutoPaymentFailures());
+            }
+            
+            log.info("Competition round proceeded: uid={}, round={}, completed={}, autoPaymentFailures={}", 
+                uid, session.getCurrentRound(), session.getCompleted(),
+                settlementResult != null ? settlementResult.getAutoPaymentFailures().size() : 0);
             
             return ApiResponse.success(response);
             
@@ -769,6 +778,9 @@ public class CompetitionController {
                 session.getUid(), currentRound, eventKey, eventType, amount, insurableEvent);
         }
         
+        // 구매 가능한 심화정보 키 목록
+        List<String> additionalInfoKeys = clueService.getAvailableAdditionalInfoKeys(currentRound, false);
+        
         return RoundStartDto.builder()
             .news(news)
             .economicPopup(null) // TODO: 특정 라운드에만 존재
@@ -776,7 +788,113 @@ public class CompetitionController {
             .browserData(browserData)
             .marketMovement(marketMovement)
             .lifeEvent(lifeEvent)
+            .availableAdditionalInfo(additionalInfoKeys)
             .build();
+    }
+    
+    /**
+     * 게임 로드 상태 확인
+     * GET /api/v1/competition/check-load
+     * 
+     * 저장된 게임 세션이 있으면 진행 상황 정보를 반환합니다.
+     */
+    @GetMapping("/check-load")
+    public ApiResponse<Map<String, Object>> checkLoad(@RequestHeader("uid") String uid) {
+        
+        log.info("Checking load status: uid={}", uid);
+        
+        try {
+            GameSessionDto session = gameSessionService.getSession(uid, GameMode.COMPETITION);
+            
+            Map<String, Object> data = new HashMap<>();
+            
+            if (session == null) {
+                data.put("hasSession", false);
+                data.put("message", "저장된 게임이 없습니다.");
+                return ApiResponse.success(data);
+            }
+            
+            data.put("hasSession", true);
+            data.put("currentRound", session.getCurrentRound());
+            data.put("completed", session.getCompleted());
+            data.put("updatedAt", session.getUpdatedAt() != null ? session.getUpdatedAt().toString() : null);
+            
+            // 진행 상황 플래그 (경쟁모드는 NPC 선택만)
+            Map<String, Boolean> progress = new HashMap<>();
+            progress.put("npcSelectionCompleted", Boolean.TRUE.equals(session.getNpcSelectionCompleted()));
+            data.put("progress", progress);
+            
+            // 포트폴리오 요약
+            if (session.getPortfolio() != null) {
+                PortfolioDto portfolio = session.getPortfolio();
+                Map<String, Object> portfolioSummary = new HashMap<>();
+                portfolioSummary.put("cash", portfolio.getCash());
+                portfolioSummary.put("totalAssets", portfolio.getTotalAssets());
+                portfolioSummary.put("netWorth", portfolio.getNetWorth());
+                data.put("portfolioSummary", portfolioSummary);
+            }
+            
+            // 기타 게임 정보
+            data.put("npcType", session.getNpcType());
+            data.put("adviceUsedCount", session.getAdviceUsedCount());
+            data.put("insuranceSubscribed", session.getInsuranceSubscribed());
+            data.put("loanUsed", session.getLoanUsed());
+            data.put("illegalLoanUsed", session.getIllegalLoanUsed());
+            
+            log.info("Load status checked: uid={}, currentRound={}, completed={}, illegalLoanUsed={}", 
+                uid, session.getCurrentRound(), session.getCompleted(), session.getIllegalLoanUsed());
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to check load status: uid={}", uid, e);
+            return ApiResponse.error("CHECK_LOAD_FAILED", "로드 상태 확인 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 불법사금융 사용
+     * POST /api/v1/competition/use-illegal-loan
+     * 
+     * 경쟁모드 6라운드에서 불법사금융 광고 클릭 시 호출
+     * (리스크 관리 점수에서 -20점 패널티)
+     */
+    @PostMapping("/use-illegal-loan")
+    public ApiResponse<Map<String, Object>> useIllegalLoan(@RequestHeader("uid") String uid) {
+        
+        log.info("Using illegal loan (competition - penalty applied): uid={}", uid);
+        
+        try {
+            GameSessionDto session = gameSessionService.getSession(uid, GameMode.COMPETITION);
+            
+            if (session == null) {
+                return ApiResponse.error("SESSION_NOT_FOUND", "게임 세션을 찾을 수 없습니다.");
+            }
+            
+            // 이미 사용한 경우
+            if (Boolean.TRUE.equals(session.getIllegalLoanUsed())) {
+                return ApiResponse.error("ALREADY_USED", "이미 불법사금융을 이용했습니다.");
+            }
+            
+            // 불법사금융 사용 플래그 설정
+            session.setIllegalLoanUsed(true);
+            gameSessionService.updateSession(uid, GameMode.COMPETITION, session);
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("used", true);
+            data.put("message", "불법사금융을 이용했습니다.");
+            data.put("warning", "⚠️ 불법사금융은 금융범죄입니다. 실제로 이용하면 안 됩니다!");
+            data.put("penalty", -20); // 경쟁모드는 -20점 패널티
+            data.put("penaltyDescription", "리스크 관리 점수에서 -20점이 차감됩니다.");
+            
+            log.info("Illegal loan used (competition): uid={}, penalty=-20", uid);
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to use illegal loan: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "불법사금융 사용 처리 실패: " + e.getMessage());
+        }
     }
     
     /**
@@ -818,20 +936,11 @@ public class CompetitionController {
         log.info("Selecting NPC: uid={}, npcType={}", uid, request.getNpcType());
         
         try {
-            GameSessionDto session = gameSessionService.getSession(uid, GameMode.COMPETITION);
-            if (session == null) {
-                // 세션이 없으면 새로 생성
-                session = GameSessionDto.builder()
-                    .uid(uid)
-                    .gameMode(GameMode.COMPETITION)
-                    .completed(false)
-                    .npcType(request.getNpcType())
-                    .npcSelectionCompleted(true)
-                    .build();
-            } else {
-                session.setNpcType(request.getNpcType());
-                session.setNpcSelectionCompleted(true);
-            }
+            // 세션이 없으면 자동 생성
+            GameSessionDto session = gameSessionService.getOrCreateSession(uid, GameMode.COMPETITION);
+            
+            session.setNpcType(request.getNpcType());
+            session.setNpcSelectionCompleted(true);
             
             gameSessionService.updateSession(uid, GameMode.COMPETITION, session);
             

@@ -158,6 +158,7 @@ public class LifeEventService {
             
             com.cas.api.dto.domain.LoanDto loan = com.cas.api.dto.domain.LoanDto.builder()
                 .loanId("LOAN_" + currentRound)
+                .productKey("LOAN_NORMAL")
                 .name("일반 대출")
                 .principal(loanAmount)
                 .remainingBalance(loanAmount)

@@ -22,6 +22,11 @@ public class PensionDto {
     private String pensionId;
     
     /**
+     * 상품 키 (예: PERSONAL_PENSION)
+     */
+    private String productKey;
+    
+    /**
      * 연금명
      */
     private String name;
@@ -30,6 +35,22 @@ public class PensionDto {
      * 월 납입액
      */
     private Long monthlyAmount;
+    
+    /**
+     * 월 납입액 (별칭)
+     */
+    public Long getMonthlyContribution() {
+        return monthlyAmount;
+    }
+    
+    public void setMonthlyContribution(Long amount) {
+        this.monthlyAmount = amount;
+    }
+    
+    /**
+     * 총 납입액
+     */
+    private Long totalContribution;
     
     /**
      * 평가금액 (복리 적용)

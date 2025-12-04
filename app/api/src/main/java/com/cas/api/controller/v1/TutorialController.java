@@ -17,6 +17,7 @@ import com.cas.api.dto.response.PortfolioResponseDto;
 import com.cas.api.dto.response.RoundStartDto;
 import com.cas.api.dto.response.RoundStateDto;
 import com.cas.api.dto.response.SettlementDto;
+import com.cas.api.dto.response.StartSettlementResultDto;
 import com.cas.api.enums.GameMode;
 import com.cas.api.service.financial.PortfolioService;
 import com.cas.api.service.game.*;
@@ -162,8 +163,9 @@ public class TutorialController {
             roundService.endRound(session, portfolio);
             
             // 게임이 완료되지 않았으면 다음 라운드 시작
+            StartSettlementResultDto settlementResult = null;
             if (!session.getCompleted()) {
-                roundService.startRound(session, portfolio);
+                settlementResult = roundService.startRound(session, portfolio);
                 portfolioService.updatePortfolioSummary(portfolio);
             }
             
@@ -173,8 +175,15 @@ public class TutorialController {
             // 응답 생성
             RoundStateDto response = buildRoundState(session, portfolio);
             
-            log.info("Tutorial round proceeded: uid={}, round={}, completed={}", 
-                uid, session.getCurrentRound(), session.getCompleted());
+            // 자동납입 실패 정보 추가
+            if (settlementResult != null && settlementResult.hasFailures()) {
+                response.getRoundStart().setAutoPayments(settlementResult.getAutoPayments());
+                response.getRoundStart().setAutoPaymentFailures(settlementResult.getAutoPaymentFailures());
+            }
+            
+            log.info("Tutorial round proceeded: uid={}, round={}, completed={}, autoPaymentFailures={}", 
+                uid, session.getCurrentRound(), session.getCompleted(),
+                settlementResult != null ? settlementResult.getAutoPaymentFailures().size() : 0);
             
             return ApiResponse.success(response);
             
@@ -772,6 +781,9 @@ public class TutorialController {
                 session.getUid(), currentRound, eventKey, eventType, amount, insurableEvent);
         }
         
+        // 구매 가능한 심화정보 키 목록
+        List<String> additionalInfoKeys = clueService.getAvailableAdditionalInfoKeys(currentRound, true);
+        
         return RoundStartDto.builder()
             .news(news)
             .economicPopup(null) // TODO: 특정 라운드에만 존재
@@ -779,7 +791,131 @@ public class TutorialController {
             .browserData(browserData)
             .marketMovement(marketMovement)
             .lifeEvent(lifeEvent)
+            .availableAdditionalInfo(additionalInfoKeys)
             .build();
+    }
+    
+    /**
+     * 게임 로드 상태 확인
+     * GET /api/v1/tutorial/check-load
+     * 
+     * 저장된 게임 세션이 있으면 진행 상황 정보를 반환합니다.
+     */
+    @GetMapping("/check-load")
+    public ApiResponse<Map<String, Object>> checkLoad(@RequestHeader("uid") String uid) {
+        
+        log.info("Checking load status: uid={}", uid);
+        
+        try {
+            GameSessionDto session = gameSessionService.getSession(uid, GameMode.TUTORIAL);
+            
+            Map<String, Object> data = new HashMap<>();
+            
+            if (session == null) {
+                data.put("hasSession", false);
+                data.put("message", "저장된 게임이 없습니다.");
+                return ApiResponse.success(data);
+            }
+            
+            data.put("hasSession", true);
+            data.put("currentRound", session.getCurrentRound());
+            data.put("completed", session.getCompleted());
+            data.put("updatedAt", session.getUpdatedAt() != null ? session.getUpdatedAt().toString() : null);
+            
+            // 진행 상황 플래그
+            Map<String, Boolean> progress = new HashMap<>();
+            progress.put("openingStoryCompleted", Boolean.TRUE.equals(session.getOpeningStoryCompleted()));
+            progress.put("propensityTestCompleted", Boolean.TRUE.equals(session.getPropensityTestCompleted()));
+            progress.put("resultAnalysisCompleted", Boolean.TRUE.equals(session.getResultAnalysisCompleted()));
+            progress.put("npcAssignmentCompleted", Boolean.TRUE.equals(session.getNpcAssignmentCompleted()));
+            data.put("progress", progress);
+            
+            // 영상 시청 완료 여부
+            Map<String, Boolean> videoCompleted = new HashMap<>();
+            videoCompleted.put("deposit", Boolean.TRUE.equals(session.getDepositVideoCompleted()));
+            videoCompleted.put("stock", Boolean.TRUE.equals(session.getStockVideoCompleted()));
+            videoCompleted.put("bond", Boolean.TRUE.equals(session.getBondVideoCompleted()));
+            videoCompleted.put("pension", Boolean.TRUE.equals(session.getPensionVideoCompleted()));
+            videoCompleted.put("fund", Boolean.TRUE.equals(session.getFundVideoCompleted()));
+            videoCompleted.put("insurance", Boolean.TRUE.equals(session.getInsuranceVideoCompleted()));
+            data.put("videoCompleted", videoCompleted);
+            
+            // 퀴즈 정답 여부 (우대금리 적용)
+            Map<String, Boolean> quizPassed = new HashMap<>();
+            quizPassed.put("deposit", Boolean.TRUE.equals(session.getDepositQuizPassed()));
+            quizPassed.put("stock", Boolean.TRUE.equals(session.getStockQuizPassed()));
+            quizPassed.put("bond", Boolean.TRUE.equals(session.getBondQuizPassed()));
+            quizPassed.put("pension", Boolean.TRUE.equals(session.getPensionQuizPassed()));
+            quizPassed.put("fund", Boolean.TRUE.equals(session.getFundQuizPassed()));
+            quizPassed.put("insurance", Boolean.TRUE.equals(session.getInsuranceQuizPassed()));
+            data.put("quizPassed", quizPassed);
+            
+            // 포트폴리오 요약
+            if (session.getPortfolio() != null) {
+                PortfolioDto portfolio = session.getPortfolio();
+                Map<String, Object> portfolioSummary = new HashMap<>();
+                portfolioSummary.put("cash", portfolio.getCash());
+                portfolioSummary.put("totalAssets", portfolio.getTotalAssets());
+                portfolioSummary.put("netWorth", portfolio.getNetWorth());
+                data.put("portfolioSummary", portfolioSummary);
+            }
+            
+            // 기타 게임 정보
+            data.put("propensityType", session.getPropensityType());
+            data.put("npcType", session.getNpcType());
+            data.put("adviceUsedCount", session.getAdviceUsedCount());
+            data.put("insuranceSubscribed", session.getInsuranceSubscribed());
+            data.put("loanUsed", session.getLoanUsed());
+            data.put("illegalLoanUsed", session.getIllegalLoanUsed());
+            
+            log.info("Load status checked: uid={}, currentRound={}, completed={}, illegalLoanUsed={}",
+                uid, session.getCurrentRound(), session.getCompleted(), session.getIllegalLoanUsed());
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to check load status: uid={}", uid, e);
+            return ApiResponse.error("CHECK_LOAD_FAILED", "로드 상태 확인 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 불법사금융 사용
+     * POST /api/v1/tutorial/use-illegal-loan
+     * 
+     * 튜토리얼 4라운드에서 불법사금융 광고 클릭 시 호출
+     * (교육 목적, 점수 영향 없음)
+     */
+    @PostMapping("/use-illegal-loan")
+    public ApiResponse<Map<String, Object>> useIllegalLoan(@RequestHeader("uid") String uid) {
+        
+        log.info("Using illegal loan (tutorial - educational): uid={}", uid);
+        
+        try {
+            GameSessionDto session = gameSessionService.getSession(uid, GameMode.TUTORIAL);
+            
+            if (session == null) {
+                return ApiResponse.error("SESSION_NOT_FOUND", "게임 세션을 찾을 수 없습니다.");
+            }
+            
+            // 불법사금융 사용 플래그 설정
+            session.setIllegalLoanUsed(true);
+            gameSessionService.updateSession(uid, GameMode.TUTORIAL, session);
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("used", true);
+            data.put("message", "불법사금융을 이용했습니다. (교육 목적 - 점수 영향 없음)");
+            data.put("warning", "⚠️ 불법사금융은 금융범죄입니다. 실제로 이용하면 안 됩니다!");
+            data.put("penalty", 0); // 튜토리얼은 패널티 없음
+            
+            log.info("Illegal loan used (tutorial): uid={}", uid);
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to use illegal loan: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "불법사금융 사용 처리 실패: " + e.getMessage());
+        }
     }
     
     /**
@@ -819,18 +955,9 @@ public class TutorialController {
         log.info("Completing opening story: uid={}", uid);
         
         try {
-            GameSessionDto session = gameSessionService.getSession(uid, GameMode.TUTORIAL);
-            if (session == null) {
-                // 세션이 없으면 새로 생성
-                session = GameSessionDto.builder()
-                    .uid(uid)
-                    .gameMode(GameMode.TUTORIAL)
-                    .completed(false)
-                    .openingStoryCompleted(true)
-                    .build();
-            } else {
-                session.setOpeningStoryCompleted(true);
-            }
+            // 세션이 없으면 자동 생성 (getOrCreateSession 사용)
+            GameSessionDto session = gameSessionService.getOrCreateSession(uid, GameMode.TUTORIAL);
+            session.setOpeningStoryCompleted(true);
             
             gameSessionService.updateSession(uid, GameMode.TUTORIAL, session);
             
@@ -859,10 +986,8 @@ public class TutorialController {
         log.info("Submitting propensity test: uid={}, answers={}", uid, request.getAnswers());
         
         try {
-            GameSessionDto session = gameSessionService.getSession(uid, GameMode.TUTORIAL);
-            if (session == null) {
-                return ApiResponse.error("SESSION_NOT_FOUND", "게임 세션을 찾을 수 없습니다.");
-            }
+            // 세션이 없으면 자동 생성
+            GameSessionDto session = gameSessionService.getOrCreateSession(uid, GameMode.TUTORIAL);
             
             session.setPropensityTestAnswers(request.getAnswers());
             session.setPropensityTestCompleted(true);
@@ -895,10 +1020,8 @@ public class TutorialController {
         log.info("Saving propensity result: uid={}, type={}", uid, request.getPropensityType());
         
         try {
-            GameSessionDto session = gameSessionService.getSession(uid, GameMode.TUTORIAL);
-            if (session == null) {
-                return ApiResponse.error("SESSION_NOT_FOUND", "게임 세션을 찾을 수 없습니다.");
-            }
+            // 세션이 없으면 자동 생성
+            GameSessionDto session = gameSessionService.getOrCreateSession(uid, GameMode.TUTORIAL);
             
             session.setPropensityType(request.getPropensityType());
             session.setResultAnalysisCompleted(true);
@@ -931,10 +1054,8 @@ public class TutorialController {
         log.info("Assigning NPC: uid={}, npcType={}", uid, request.getNpcType());
         
         try {
-            GameSessionDto session = gameSessionService.getSession(uid, GameMode.TUTORIAL);
-            if (session == null) {
-                return ApiResponse.error("SESSION_NOT_FOUND", "게임 세션을 찾을 수 없습니다.");
-            }
+            // 세션이 없으면 자동 생성
+            GameSessionDto session = gameSessionService.getOrCreateSession(uid, GameMode.TUTORIAL);
             
             session.setNpcType(request.getNpcType());
             session.setNpcAssignmentCompleted(true);

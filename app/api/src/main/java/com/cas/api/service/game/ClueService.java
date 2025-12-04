@@ -77,5 +77,29 @@ public class ClueService {
             "NEWS_FORTUNE_R" + currentRound
         );
     }
+    
+    /**
+     * 라운드별 구매 가능한 심화정보 키 목록 반환
+     * (프론트엔드에서 buy-additional-info 호출 시 이 키 사용)
+     * 
+     * @param currentRound 현재 라운드
+     * @param isTutorial 튜토리얼 모드 여부
+     * @return 심화정보 키 목록
+     */
+    public java.util.List<String> getAvailableAdditionalInfoKeys(int currentRound, boolean isTutorial) {
+        // 라운드별로 2~3개의 심화정보 제공
+        String prefix = isTutorial ? "DEEP_INFO_TUTORIAL_R" : "DEEP_INFO_COMPETITION_R";
+        
+        java.util.List<String> keys = new java.util.ArrayList<>();
+        keys.add(prefix + currentRound + "_01");
+        keys.add(prefix + currentRound + "_02");
+        
+        // 짝수 라운드에는 추가 심화정보
+        if (currentRound % 2 == 0) {
+            keys.add(prefix + currentRound + "_03");
+        }
+        
+        return keys;
+    }
 }
 

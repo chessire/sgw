@@ -7,17 +7,13 @@ import lombok.NoArgsConstructor;
 
 /**
  * 검증 Request
+ * uid는 Header로 전달됨
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ValidateRequest {
-    
-    /**
-     * 사용자 고유 식별자
-     */
-    private String uid;
     
     /**
      * CDN 게임 데이터 MD5 Hash

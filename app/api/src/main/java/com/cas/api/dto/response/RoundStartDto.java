@@ -47,6 +47,24 @@ public class RoundStartDto {
      */
     private LifeEventDto lifeEvent;
     
+    /**
+     * 자동 납입 결과 (2라운드부터)
+     */
+    private AutoPaymentResultDto autoPayments;
+    
+    /**
+     * 자동 납입 실패 목록 (팝업 표시용)
+     * - 정산보고서 표시 전에 팝업으로 표시해야 함
+     */
+    private List<AutoPaymentFailureDto> autoPaymentFailures;
+    
+    /**
+     * 구매 가능한 심화정보 키 목록
+     * - 해당 라운드에서 구매 가능한 심화정보의 키들
+     * - 프론트엔드에서 buy-additional-info 호출 시 이 키 사용
+     */
+    private List<String> availableAdditionalInfo;
+    
     @Data
     @Builder
     @NoArgsConstructor

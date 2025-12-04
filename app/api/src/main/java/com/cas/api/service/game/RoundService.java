@@ -2,6 +2,7 @@ package com.cas.api.service.game;
 
 import com.cas.api.dto.domain.GameSessionDto;
 import com.cas.api.dto.domain.PortfolioDto;
+import com.cas.api.dto.response.StartSettlementResultDto;
 import com.cas.api.enums.GameMode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,27 +31,31 @@ public class RoundService {
      * 
      * @param session 게임 세션
      * @param portfolio 포트폴리오
+     * @return 정산 결과 (자동 납입 실패 정보 포함)
      */
-    public void startRound(GameSessionDto session, PortfolioDto portfolio) {
+    public StartSettlementResultDto startRound(GameSessionDto session, PortfolioDto portfolio) {
         log.info("Starting round: uid={}, mode={}, round={}", 
             session.getUid(), session.getGameMode(), session.getCurrentRound());
         
         int currentRound = session.getCurrentRound();
-        GameMode gameMode = session.getGameMode();
         
         // 1. 시장 시세 업데이트
         marketEventService.updateStockPrices(session, portfolio);
         marketEventService.updateFundNavs(session, portfolio);
         
-        // 2. 라운드 시작 정산
-        settlementService.processStartSettlement(session, portfolio);
+        // 2. 라운드 시작 정산 (자동 납입 포함)
+        StartSettlementResultDto settlementResult = 
+            settlementService.processStartSettlementWithAutoPayment(session, portfolio);
         
         // 3. 배당금 지급 (3라운드, 6라운드)
         if (currentRound == 3 || currentRound == 6) {
             settlementService.processDividendSettlement(portfolio, currentRound);
         }
         
-        log.info("Round started: cash={}", portfolio.getCash());
+        log.info("Round started: cash={}, autoPaymentFailures={}", 
+            portfolio.getCash(), settlementResult.getAutoPaymentFailures().size());
+        
+        return settlementResult;
     }
     
     /**

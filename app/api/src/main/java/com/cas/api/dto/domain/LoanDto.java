@@ -22,6 +22,11 @@ public class LoanDto {
     private String loanId;
     
     /**
+     * 상품 키 (LOAN_NORMAL, LOAN_ILLEGAL 등)
+     */
+    private String productKey;
+    
+    /**
      * 대출명
      */
     private String name;
@@ -55,6 +60,11 @@ public class LoanDto {
      * 경과 개월 수
      */
     private Integer elapsedMonths;
+    
+    /**
+     * 남은 개월 수
+     */
+    private Integer remainingMonths;
     
     /**
      * 월 이자 (대출금 × 5% ÷ 12)

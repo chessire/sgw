@@ -35,15 +35,17 @@ public class ValidationController {
      * 검증 API
      * POST /api/v1/validate
      * 
-     * @param request uid, dataFileMD5
+     * @param uid Header로 전달되는 사용자 식별자
+     * @param request dataFileMD5
      * @return 저장된 게임 데이터 정보
      */
     @PostMapping("/validate")
-    public ApiResponse<Map<String, Object>> validate(@RequestBody ValidateRequest request) {
-        log.info("Validate requested: uid={}", request.getUid());
+    public ApiResponse<Map<String, Object>> validate(
+            @RequestHeader("uid") String uid,
+            @RequestBody ValidateRequest request) {
+        log.info("Validate requested: uid={}", uid);
         
         try {
-            String uid = request.getUid();
             String clientMD5 = request.getDataFileMD5();
             
             // 1. UID 검증 (간단한 형식 체크)
@@ -85,8 +87,16 @@ public class ValidationController {
             
             data.put("existingGame", existingGame);
             
-            log.info("Validation successful: uid={}, tutorial={}, competition={}", 
-                uid, tutorialStatus, competitionStatus);
+            // 4. 플레이 횟수 (목업 데이터)
+            // TODO: DB 연동 시 실제 플레이 횟수로 대체 필요
+            Map<String, Integer> playCount = new HashMap<>();
+            playCount.put("tutorial", getMockPlayCount(tutorialSession, tutorialStatus));
+            playCount.put("competition", getMockPlayCount(competitionSession, competitionStatus));
+            data.put("playCount", playCount);
+            data.put("isMockData", true);  // 목업 데이터임을 표시
+            
+            log.info("Validation successful: uid={}, tutorial={}, competition={}, playCount={}", 
+                uid, tutorialStatus, competitionStatus, playCount);
             
             return ApiResponse.success(data);
             
@@ -112,6 +122,23 @@ public class ValidationController {
         }
         
         return "IN_PROGRESS";
+    }
+    
+    /**
+     * 플레이 횟수 반환 (목업 데이터)
+     * TODO: DB 연동 시 실제 플레이 횟수로 대체 필요
+     * 
+     * @param session 게임 세션
+     * @param status 게임 상태
+     * @return 플레이 횟수 (1회차 이상이면 스킵 가능)
+     */
+    private int getMockPlayCount(GameSessionDto session, String status) {
+        // 목업 로직: COMPLETED면 1회, 그 외는 0회
+        // 실제로는 DB에서 해당 uid의 완료 횟수를 조회해야 함
+        if ("COMPLETED".equals(status)) {
+            return 1;
+        }
+        return 0;
     }
     
     /**

@@ -789,6 +789,7 @@ public class ActionService {
         // 대출 생성
         LoanDto newLoan = LoanDto.builder()
             .loanId("LOAN_01")
+            .productKey("LOAN_NORMAL")
             .name("단기대출")
             .principal(amount)
             .remainingBalance(amount)

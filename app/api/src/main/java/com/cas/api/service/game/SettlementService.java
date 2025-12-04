@@ -1,12 +1,18 @@
 package com.cas.api.service.game;
 
 import com.cas.api.dto.domain.*;
+import com.cas.api.dto.response.AutoPaymentFailureDto;
+import com.cas.api.dto.response.AutoPaymentResultDto;
+import com.cas.api.dto.response.StartSettlementResultDto;
 import com.cas.api.service.financial.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * 정산 계산 Service
@@ -81,6 +87,238 @@ public class SettlementService {
         log.info("Start settlement completed: cash={}", cash);
         
         return cash;
+    }
+    
+    /**
+     * 라운드 시작 정산 (자동 납입 포함)
+     * 1. 월급 지급 (2라운드부터)
+     * 2. 생활비 차감 (2라운드부터)
+     * 3. 대출 이자 차감 (소액, 반드시 성공)
+     * 4. 연금 납입 (소액, 반드시 성공)
+     * 5. 보험료 납입 (소액, 반드시 성공)
+     * 6. 적금 납입 (잔액 부족 시 실패 가능)
+     * 
+     * @param session 게임 세션
+     * @param portfolio 포트폴리오
+     * @return 정산 결과 (현금 + 자동 납입 결과)
+     */
+    public StartSettlementResultDto processStartSettlementWithAutoPayment(
+            GameSessionDto session, PortfolioDto portfolio) {
+        
+        log.info("Processing start settlement with auto payments: uid={}, round={}", 
+            session.getUid(), session.getCurrentRound());
+        
+        long cash = portfolio.getCash() != null ? portfolio.getCash() : 0L;
+        int currentRound = session.getCurrentRound();
+        
+        AutoPaymentResultDto autoPayments = AutoPaymentResultDto.builder()
+            .savings(new ArrayList<>())
+            .pensions(new ArrayList<>())
+            .build();
+        List<AutoPaymentFailureDto> failures = new ArrayList<>();
+        
+        // 1라운드는 초기 자금만 있고 월급/생활비 처리 없음
+        if (currentRound == 1) {
+            log.info("Round 1: No salary/expense settlement (initial cash only)");
+            portfolio.setCash(cash);
+            return StartSettlementResultDto.builder()
+                .cashAfterSettlement(cash)
+                .autoPayments(autoPayments)
+                .autoPaymentFailures(failures)
+                .build();
+        }
+        
+        // 1. 월급 지급 (2라운드부터)
+        long salary = session.getMonthlySalary();
+        cash += salary;
+        log.debug("Salary added: +{}, cash={}", salary, cash);
+        
+        // 2. 생활비 차감 (2라운드부터)
+        long livingExpense = session.getMonthlyLiving();
+        cash -= livingExpense;
+        log.debug("Living expense deducted: -{}, cash={}", livingExpense, cash);
+        
+        // 3. 대출 이자 차감 (소액이라 반드시 성공)
+        if (Boolean.TRUE.equals(session.getLoanUsed()) && portfolio.getLoans() != null) {
+            for (LoanDto loan : portfolio.getLoans()) {
+                if (loan.getRemainingMonths() != null && loan.getRemainingMonths() > 0) {
+                    // 월 이자 = 대출금 × 연 5% ÷ 12
+                    long monthlyInterest = Math.round(loan.getPrincipal() * 0.05 / 12);
+                    cash -= monthlyInterest;
+                    
+                    autoPayments.setLoanInterest(AutoPaymentResultDto.PaymentItemDto.builder()
+                        .productKey(loan.getLoanId())
+                        .name("대출 이자")
+                        .amount(monthlyInterest)
+                        .success(true)
+                        .build());
+                    
+                    log.debug("Loan interest deducted: -{}, cash={}", monthlyInterest, cash);
+                }
+            }
+        }
+        
+        // 4. 연금 납입 (소액이라 반드시 성공, 중도해지 불가)
+        if (portfolio.getPensions() != null) {
+            for (PensionDto pension : portfolio.getPensions()) {
+                // 이미 가입된 연금만 처리 (subscriptionRound 이후)
+                if (pension.getSubscriptionRound() != null && 
+                    pension.getSubscriptionRound() < currentRound) {
+                    
+                    long monthlyAmount = pension.getMonthlyContribution() != null 
+                        ? pension.getMonthlyContribution() : 50000L;
+                    
+                    cash -= monthlyAmount;
+                    
+                    // 납입 횟수 증가
+                    int paymentCount = pension.getPaymentCount() != null ? pension.getPaymentCount() : 0;
+                    pension.setPaymentCount(paymentCount + 1);
+                    
+                    // 총 납입액 업데이트
+                    long totalContribution = pension.getTotalContribution() != null 
+                        ? pension.getTotalContribution() : 0L;
+                    pension.setTotalContribution(totalContribution + monthlyAmount);
+                    
+                    // 평가액 업데이트 (연 3.2% 월복리)
+                    updatePensionEvaluation(pension);
+                    
+                    autoPayments.getPensions().add(AutoPaymentResultDto.PaymentItemDto.builder()
+                        .productKey(pension.getProductKey())
+                        .name(pension.getName() != null ? pension.getName() : "개인연금")
+                        .amount(monthlyAmount)
+                        .success(true)
+                        .build());
+                    
+                    log.debug("Pension payment deducted: productKey={}, amount={}, cash={}", 
+                        pension.getProductKey(), monthlyAmount, cash);
+                }
+            }
+        }
+        
+        // 5. 보험료 납입 (소액이라 반드시 성공)
+        if (Boolean.TRUE.equals(session.getInsuranceSubscribed())) {
+            long insurancePremium = session.getMonthlyInsurancePremium() != null 
+                ? session.getMonthlyInsurancePremium() 
+                : 5000L;
+            cash -= insurancePremium;
+            
+            autoPayments.setInsurance(AutoPaymentResultDto.PaymentItemDto.builder()
+                .productKey("INSURANCE")
+                .name("보험")
+                .amount(insurancePremium)
+                .success(true)
+                .build());
+            
+            log.debug("Insurance premium deducted: -{}, cash={}", insurancePremium, cash);
+        }
+        
+        // 6. 적금 납입 (잔액 부족 시 실패 가능)
+        if (portfolio.getSavings() != null) {
+            for (SavingDto saving : portfolio.getSavings()) {
+                // 이미 가입된 적금만 처리 (subscriptionRound 이후)
+                if (saving.getSubscriptionRound() != null && 
+                    saving.getSubscriptionRound() < currentRound) {
+                    
+                    long monthlyAmount = saving.getMonthlyAmount() != null 
+                        ? saving.getMonthlyAmount() : 0L;
+                    
+                    String savingName = getSavingName(saving.getProductKey());
+                    
+                    // 잔액 확인
+                    if (cash >= monthlyAmount) {
+                        // 납입 성공
+                        cash -= monthlyAmount;
+                        
+                        // 납입 횟수 증가
+                        int paymentCount = saving.getPaymentCount() != null ? saving.getPaymentCount() : 0;
+                        saving.setPaymentCount(paymentCount + 1);
+                        
+                        // 잔액 업데이트
+                        long balance = saving.getBalance() != null ? saving.getBalance() : 0L;
+                        saving.setBalance(balance + monthlyAmount);
+                        
+                        autoPayments.getSavings().add(AutoPaymentResultDto.PaymentItemDto.builder()
+                            .productKey(saving.getProductKey())
+                            .name(savingName)
+                            .amount(monthlyAmount)
+                            .success(true)
+                            .build());
+                        
+                        log.debug("Saving payment success: productKey={}, amount={}, cash={}", 
+                            saving.getProductKey(), monthlyAmount, cash);
+                    } else {
+                        // 납입 실패 - 잔액 부족
+                        autoPayments.getSavings().add(AutoPaymentResultDto.PaymentItemDto.builder()
+                            .productKey(saving.getProductKey())
+                            .name(savingName)
+                            .amount(monthlyAmount)
+                            .success(false)
+                            .failReason("INSUFFICIENT_CASH")
+                            .build());
+                        
+                        // 실패 팝업 정보 추가
+                        failures.add(AutoPaymentFailureDto.builder()
+                            .type("SAVING")
+                            .productKey(saving.getProductKey())
+                            .name(savingName)
+                            .amount(monthlyAmount)
+                            .message("현금이 부족하여 " + savingName + " 자동이체가 실행되지 않았습니다.")
+                            .actions(Arrays.asList("CANCEL_PRODUCT", "CANCEL_OTHER"))
+                            .build());
+                        
+                        log.warn("Saving payment failed: productKey={}, amount={}, cash={}", 
+                            saving.getProductKey(), monthlyAmount, cash);
+                    }
+                }
+            }
+        }
+        
+        portfolio.setCash(cash);
+        log.info("Start settlement with auto payments completed: cash={}, failures={}", 
+            cash, failures.size());
+        
+        return StartSettlementResultDto.builder()
+            .cashAfterSettlement(cash)
+            .autoPayments(autoPayments)
+            .autoPaymentFailures(failures)
+            .build();
+    }
+    
+    /**
+     * 연금 평가액 업데이트 (연 3.2% 월복리)
+     */
+    private void updatePensionEvaluation(PensionDto pension) {
+        // 간단한 계산: 총 납입액 + 이자
+        // 실제로는 각 납입금별로 경과 개월수에 따른 복리 계산 필요
+        long totalContribution = pension.getTotalContribution() != null ? pension.getTotalContribution() : 0L;
+        int paymentCount = pension.getPaymentCount() != null ? pension.getPaymentCount() : 0;
+        
+        // 평균 경과 기간으로 간략화 (실제 구현 시 더 정밀하게)
+        double avgMonths = paymentCount / 2.0;
+        double monthlyRate = 0.032 / 12;
+        double accumulatedReturn = totalContribution * monthlyRate * avgMonths;
+        
+        pension.setEvaluationAmount(totalContribution + Math.round(accumulatedReturn));
+    }
+    
+    /**
+     * 적금 상품명 조회
+     */
+    private String getSavingName(String productKey) {
+        if (productKey == null) return "적금";
+        
+        switch (productKey) {
+            case "SAVING_A":
+                return "적금 A";
+            case "SAVING_B":
+                return "적금 B";
+            case "SAVING_C":
+                return "적금 C";
+            default:
+                return productKey.contains("_") 
+                    ? productKey.replace("_", " ") 
+                    : "적금";
+        }
     }
     
     /**

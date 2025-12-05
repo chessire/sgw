@@ -15,6 +15,7 @@ import com.cas.api.dto.request.SubmitQuizRequest;
 import com.cas.api.dto.request.UseAdviceRequest;
 import com.cas.api.dto.response.PortfolioResponseDto;
 import com.cas.api.dto.response.RoundStartDto;
+import com.cas.api.dto.response.GameStatusDto;
 import com.cas.api.dto.response.RoundStateDto;
 import com.cas.api.dto.response.SettlementDto;
 import com.cas.api.dto.response.StartSettlementResultDto;
@@ -618,11 +619,69 @@ public class TutorialController {
         // RoundStart - 시장 변동 및 게임 정보
         RoundStartDto roundStart = buildRoundStartInfo(session);
         
+        // GameStatus - 게임 상태 정보
+        GameStatusDto gameStatus = buildGameStatus(session);
+        
         return RoundStateDto.builder()
             .currentRound(currentRound)
             .settlement(settlement)
             .portfolio(portfolioResponse)
             .roundStart(roundStart)
+            .gameStatus(gameStatus)
+            .build();
+    }
+    
+    /**
+     * GameStatus 정보 구성
+     */
+    private GameStatusDto buildGameStatus(GameSessionDto session) {
+        // 영상 시청 상태
+        GameStatusDto.VideoStatusDto videoStatus = GameStatusDto.VideoStatusDto.builder()
+            .depositVideoCompleted(session.getDepositVideoCompleted())
+            .stockVideoCompleted(session.getStockVideoCompleted())
+            .bondVideoCompleted(session.getBondVideoCompleted())
+            .pensionVideoCompleted(session.getPensionVideoCompleted())
+            .fundVideoCompleted(session.getFundVideoCompleted())
+            .insuranceVideoCompleted(session.getInsuranceVideoCompleted())
+            .build();
+        
+        // 퀴즈 정답 상태
+        GameStatusDto.QuizStatusDto quizStatus = GameStatusDto.QuizStatusDto.builder()
+            .depositQuizPassed(session.getDepositQuizPassed())
+            .stockQuizPassed(session.getStockQuizPassed())
+            .bondQuizPassed(session.getBondQuizPassed())
+            .pensionQuizPassed(session.getPensionQuizPassed())
+            .fundQuizPassed(session.getFundQuizPassed())
+            .insuranceQuizPassed(session.getInsuranceQuizPassed())
+            .build();
+        
+        // 조언 남은 횟수 계산
+        int adviceUsed = session.getAdviceUsedCount() != null ? session.getAdviceUsedCount() : 0;
+        int adviceRemaining = 3 - adviceUsed;
+        
+        return GameStatusDto.builder()
+            // NPC 정보
+            .npcType(session.getNpcType())
+            .npcAssignmentCompleted(session.getNpcAssignmentCompleted())
+            .npcSelectionCompleted(session.getNpcSelectionCompleted())
+            // 진행 상태
+            .completed(session.getCompleted())
+            .openingStoryCompleted(session.getOpeningStoryCompleted())
+            .propensityTestCompleted(session.getPropensityTestCompleted())
+            .propensityType(session.getPropensityType())
+            .resultAnalysisCompleted(session.getResultAnalysisCompleted())
+            // 보험/대출 상태
+            .insuranceSubscribed(session.getInsuranceSubscribed())
+            .monthlyInsurancePremium(session.getMonthlyInsurancePremium())
+            .loanUsed(session.getLoanUsed())
+            .illegalLoanUsed(session.getIllegalLoanUsed())
+            .insurableEventOccurred(session.getInsurableEventOccurred())
+            // 조언 사용
+            .adviceUsedCount(adviceUsed)
+            .adviceRemaining(adviceRemaining)
+            // 영상/퀴즈 상태
+            .videoStatus(videoStatus)
+            .quizStatus(quizStatus)
             .build();
     }
     

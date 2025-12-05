@@ -1,6 +1,5 @@
 package com.cas.api.dto.response;
 
-import com.cas.api.dto.domain.PortfolioDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,6 +34,11 @@ public class RoundStateDto {
      * 라운드 시작 정보 (뉴스, 시장 변동 등)
      */
     private RoundStartDto roundStart;
+    
+    /**
+     * 게임 상태 정보 (NPC, 보험, 영상시청 등)
+     */
+    private GameStatusDto gameStatus;
     
     @Data
     @Builder

@@ -53,5 +53,10 @@ public class FundHoldingDto {
      * 수익률 (%)
      */
     private Double returnRate;
+    
+    /**
+     * 가입 라운드
+     */
+    private Integer purchaseRound;
 }
 

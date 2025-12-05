@@ -645,6 +645,7 @@ public class ActionService {
                 .evaluationAmount(totalCost)
                 .profitLoss(0L)
                 .returnRate(0.0)
+                .purchaseRound(session.getCurrentRound())
                 .build();
             
             portfolio.getFunds().add(newFund);

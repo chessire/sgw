@@ -1,20 +1,25 @@
 package com.cas.api.controller.v1;
 
 import com.cas.api.constant.GameConstants;
+import com.cas.api.dto.domain.FundHoldingDto;
 import com.cas.api.dto.domain.GameSessionDto;
 import com.cas.api.dto.domain.LoanDto;
 import com.cas.api.dto.domain.PortfolioDto;
+import com.cas.api.dto.domain.StockHoldingDto;
 import com.cas.api.dto.request.BuyAdditionalInfoRequest;
 import com.cas.api.dto.request.NpcRequest;
 import com.cas.api.dto.request.ResolveLifeEventRequest;
 import com.cas.api.dto.request.UseAdviceRequest;
 import com.cas.api.dto.response.PortfolioResponseDto;
 import com.cas.api.dto.response.RoundStartDto;
+import com.cas.api.dto.request.ProductCalculationRequest;
 import com.cas.api.dto.response.GameStatusDto;
+import com.cas.api.dto.response.ProductCalculationDto;
 import com.cas.api.dto.response.RoundStateDto;
 import com.cas.api.dto.response.SettlementDto;
 import com.cas.api.dto.response.StartSettlementResultDto;
 import com.cas.api.enums.GameMode;
+import com.cas.api.service.financial.DepositService;
 import com.cas.api.service.financial.PortfolioService;
 import com.cas.api.service.game.*;
 import com.cas.common.web.dto.ApiResponse;
@@ -45,6 +50,7 @@ public class CompetitionController {
     private final LifeEventService lifeEventService;
     private final RankingService rankingService;
     private final AchievementService achievementService;
+    private final DepositService depositService;
     private final java.util.Random random = new java.util.Random();
     
     /**
@@ -1001,6 +1007,379 @@ public class CompetitionController {
             log.error("Failed to select NPC: uid={}", uid, e);
             return ApiResponse.error("FAILED", "NPC 선택 실패: " + e.getMessage());
         }
+    }
+    
+    /**
+     * 상품 구매 계산 미리보기
+     * POST /api/v1/competition/calculate-product
+     */
+    @PostMapping("/calculate-product")
+    public ApiResponse<ProductCalculationDto> calculateProduct(
+            @RequestHeader("uid") String uid,
+            @RequestBody ProductCalculationRequest request) {
+        
+        log.info("Calculating product: uid={}, type={}, key={}, action={}", 
+            uid, request.getProductType(), request.getProductKey(), request.getAction());
+        
+        try {
+            GameSessionDto session = gameSessionService.getSession(uid, GameMode.COMPETITION);
+            if (session == null) {
+                return ApiResponse.error("SESSION_NOT_FOUND", "게임 세션을 찾을 수 없습니다.");
+            }
+            
+            PortfolioDto portfolio = session.getPortfolio();
+            Long currentCash = portfolio.getCash();
+            
+            ProductCalculationDto result = calculateProductInternal(
+                session, portfolio, request, currentCash);
+            
+            return ApiResponse.success(result);
+            
+        } catch (Exception e) {
+            log.error("Failed to calculate product: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "상품 계산 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 상품 계산 내부 로직
+     */
+    private ProductCalculationDto calculateProductInternal(
+            GameSessionDto session, PortfolioDto portfolio,
+            ProductCalculationRequest request, Long currentCash) {
+        
+        String productType = request.getProductType().toUpperCase();
+        String productKey = request.getProductKey();
+        String action = request.getAction() != null ? request.getAction().toUpperCase() : "BUY";
+        
+        ProductCalculationDto.ProductCalculationDtoBuilder builder = ProductCalculationDto.builder()
+            .productType(productType)
+            .productKey(productKey)
+            .action(action);
+        
+        switch (productType) {
+            case "STOCK":
+                return calculateStock(session, portfolio, request, currentCash, builder);
+            case "FUND":
+                return calculateFund(session, portfolio, request, currentCash, builder);
+            case "DEPOSIT":
+                return calculateDeposit(session, request, currentCash, builder);
+            case "SAVING":
+                return calculateSaving(session, request, currentCash, builder);
+            case "BOND":
+                return calculateBond(session, request, currentCash, builder);
+            default:
+                return builder
+                    .productName("알 수 없는 상품")
+                    .insufficientCash(false)
+                    .build();
+        }
+    }
+    
+    /**
+     * 주식 계산
+     */
+    private ProductCalculationDto calculateStock(
+            GameSessionDto session, PortfolioDto portfolio,
+            ProductCalculationRequest request, Long currentCash,
+            ProductCalculationDto.ProductCalculationDtoBuilder builder) {
+        
+        String stockId = request.getProductKey();
+        Integer quantity = request.getQuantity() != null ? request.getQuantity() : 0;
+        String action = request.getAction() != null ? request.getAction().toUpperCase() : "BUY";
+        
+        Long currentPrice = marketEventService.getCurrentStockPrice(
+            stockId, session.getGameMode(), session.getCurrentRound());
+        
+        // 기존 보유 주식 찾기
+        StockHoldingDto existingStock = portfolio.getStocks().stream()
+            .filter(s -> s.getStockId().equals(stockId))
+            .findFirst()
+            .orElse(null);
+        
+        int currentQuantity = existingStock != null ? existingStock.getQuantity() : 0;
+        long currentAvgPrice = existingStock != null ? existingStock.getAvgPrice() : 0;
+        
+        if ("BUY".equals(action)) {
+            long totalCost = currentPrice * quantity;
+            boolean insufficientCash = currentCash < totalCost;
+            
+            // 매수 후 예상 값
+            int expectedQuantity = currentQuantity + quantity;
+            long totalPurchaseAmount = (currentAvgPrice * currentQuantity) + (currentPrice * quantity);
+            long expectedAvgPrice = expectedQuantity > 0 ? totalPurchaseAmount / expectedQuantity : currentPrice;
+            long expectedEvaluation = currentPrice * expectedQuantity;
+            
+            return builder
+                .productName(getStockName(stockId))
+                .requestQuantity(quantity)
+                .currentPrice(currentPrice)
+                .quantity(quantity)
+                .totalCost(totalCost)
+                .expectedCashAfter(currentCash - totalCost)
+                .insufficientCash(insufficientCash)
+                .expectedQuantityAfter(expectedQuantity)
+                .expectedAvgPrice(expectedAvgPrice)
+                .expectedEvaluationAmount(expectedEvaluation)
+                .build();
+        } else { // SELL
+            long totalReceived = currentPrice * quantity;
+            boolean canSell = currentQuantity >= quantity;
+            
+            int expectedQuantity = Math.max(0, currentQuantity - quantity);
+            long expectedEvaluation = currentPrice * expectedQuantity;
+            
+            return builder
+                .productName(getStockName(stockId))
+                .requestQuantity(quantity)
+                .currentPrice(currentPrice)
+                .quantity(quantity)
+                .totalCost(-totalReceived)
+                .expectedCashAfter(currentCash + totalReceived)
+                .insufficientCash(!canSell)
+                .expectedQuantityAfter(expectedQuantity)
+                .expectedAvgPrice(currentAvgPrice)
+                .expectedEvaluationAmount(expectedEvaluation)
+                .build();
+        }
+    }
+    
+    /**
+     * 펀드 계산
+     */
+    private ProductCalculationDto calculateFund(
+            GameSessionDto session, PortfolioDto portfolio,
+            ProductCalculationRequest request, Long currentCash,
+            ProductCalculationDto.ProductCalculationDtoBuilder builder) {
+        
+        String fundId = request.getProductKey();
+        Long amount = request.getAmount() != null ? request.getAmount() : 0L;
+        String action = request.getAction() != null ? request.getAction().toUpperCase() : "BUY";
+        
+        Long currentNav = marketEventService.getCurrentFundNav(
+            fundId, session.getGameMode(), session.getCurrentRound());
+        
+        // 좌수 계산
+        int shares = (int) Math.round((double) amount / currentNav);
+        long totalCost = currentNav * shares;
+        
+        // 기존 보유 펀드 찾기
+        FundHoldingDto existingFund = portfolio.getFunds().stream()
+            .filter(f -> f.getFundId().equals(fundId))
+            .findFirst()
+            .orElse(null);
+        
+        int currentShares = existingFund != null ? existingFund.getShares() : 0;
+        long currentAvgNav = existingFund != null ? existingFund.getAvgNav() : 0;
+        
+        if ("BUY".equals(action)) {
+            boolean insufficientCash = currentCash < totalCost;
+            
+            // 매수 후 예상 값
+            int expectedShares = currentShares + shares;
+            long totalPurchaseAmount = (currentAvgNav * currentShares) + (currentNav * shares);
+            long expectedAvgNav = expectedShares > 0 ? totalPurchaseAmount / expectedShares : currentNav;
+            long expectedEvaluation = currentNav * expectedShares;
+            
+            return builder
+                .productName(getFundName(fundId))
+                .requestAmount(amount)
+                .currentNav(currentNav)
+                .shares(shares)
+                .totalCost(totalCost)
+                .expectedCashAfter(currentCash - totalCost)
+                .insufficientCash(insufficientCash)
+                .expectedSharesAfter(expectedShares)
+                .expectedAvgNav(expectedAvgNav)
+                .expectedEvaluationAmount(expectedEvaluation)
+                .build();
+        } else { // SELL
+            boolean canSell = currentShares >= shares;
+            long totalReceived = currentNav * shares;
+            
+            int expectedShares = Math.max(0, currentShares - shares);
+            long expectedEvaluation = currentNav * expectedShares;
+            
+            return builder
+                .productName(getFundName(fundId))
+                .requestAmount(amount)
+                .currentNav(currentNav)
+                .shares(shares)
+                .totalCost(-totalReceived)
+                .expectedCashAfter(currentCash + totalReceived)
+                .insufficientCash(!canSell)
+                .expectedSharesAfter(expectedShares)
+                .expectedAvgNav(currentAvgNav)
+                .expectedEvaluationAmount(expectedEvaluation)
+                .build();
+        }
+    }
+    
+    /**
+     * 예금 계산
+     */
+    private ProductCalculationDto calculateDeposit(
+            GameSessionDto session, ProductCalculationRequest request, Long currentCash,
+            ProductCalculationDto.ProductCalculationDtoBuilder builder) {
+        
+        Long amount = request.getAmount() != null ? request.getAmount() : 0L;
+        boolean insufficientCash = currentCash < amount;
+        
+        // 만기 계산 (경쟁모드)
+        int maturityMonths = GameConstants.COMPETITION_DEPOSIT_MATURITY_MONTHS;
+        int maturityRound = Math.min(
+            session.getCurrentRound() + maturityMonths,
+            session.getGameMode().getMaxRounds());
+        
+        // 예상 이자 계산
+        BigDecimal interestRate = GameConstants.DEPOSIT_BASE_RATE;
+        BigDecimal expectedMaturity = depositService.calculateDepositMaturity(
+            BigDecimal.valueOf(amount), interestRate, maturityMonths);
+        long expectedInterest = expectedMaturity.longValue() - amount;
+        
+        return builder
+            .productName("예금")
+            .requestAmount(amount)
+            .totalCost(amount)
+            .expectedCashAfter(currentCash - amount)
+            .insufficientCash(insufficientCash)
+            .interestRate(interestRate)
+            .preferentialApplied(false)
+            .maturityRound(maturityRound)
+            .expectedMaturityAmount(expectedMaturity.longValue())
+            .expectedInterest(expectedInterest)
+            .build();
+    }
+    
+    /**
+     * 적금 계산
+     */
+    private ProductCalculationDto calculateSaving(
+            GameSessionDto session, ProductCalculationRequest request, Long currentCash,
+            ProductCalculationDto.ProductCalculationDtoBuilder builder) {
+        
+        String productKey = request.getProductKey();
+        Long monthlyAmount = request.getAmount() != null ? request.getAmount() : 0L;
+        boolean insufficientCash = currentCash < monthlyAmount;
+        
+        // 상품별 금리 및 만기 (경쟁모드)
+        BigDecimal interestRate;
+        int maturityMonths;
+        String productName;
+        
+        if ("SAVING_A".equals(productKey)) {
+            interestRate = GameConstants.SAVING_A_BASE_RATE;
+            maturityMonths = GameConstants.COMPETITION_SAVING_A_MATURITY_MONTHS;
+            productName = "적금 A";
+        } else {
+            interestRate = GameConstants.SAVING_B_BASE_RATE;
+            maturityMonths = GameConstants.COMPETITION_SAVING_B_MATURITY_MONTHS;
+            productName = "적금 B";
+        }
+        
+        int maturityRound = Math.min(
+            session.getCurrentRound() + maturityMonths,
+            session.getGameMode().getMaxRounds());
+        
+        // 예상 만기 금액 계산
+        BigDecimal expectedMaturity = depositService.calculateSavingMaturity(
+            BigDecimal.valueOf(monthlyAmount), interestRate, maturityMonths);
+        long totalContribution = monthlyAmount * maturityMonths;
+        long expectedInterest = expectedMaturity.longValue() - totalContribution;
+        
+        return builder
+            .productName(productName)
+            .requestAmount(monthlyAmount)
+            .totalCost(monthlyAmount)
+            .expectedCashAfter(currentCash - monthlyAmount)
+            .insufficientCash(insufficientCash)
+            .interestRate(interestRate)
+            .preferentialApplied(false)
+            .maturityRound(maturityRound)
+            .expectedMaturityAmount(expectedMaturity.longValue())
+            .expectedInterest(expectedInterest)
+            .build();
+    }
+    
+    /**
+     * 채권 계산
+     */
+    private ProductCalculationDto calculateBond(
+            GameSessionDto session, ProductCalculationRequest request, Long currentCash,
+            ProductCalculationDto.ProductCalculationDtoBuilder builder) {
+        
+        String bondId = request.getProductKey();
+        Long amount = request.getAmount() != null ? request.getAmount() : 0L;
+        boolean insufficientCash = currentCash < amount;
+        
+        // 기준금리 조회
+        BigDecimal baseRate = marketEventService.getBaseRate(session);
+        
+        // 채권별 금리 및 만기 (경쟁모드)
+        BigDecimal interestRate;
+        int maturityMonths;
+        String productName;
+        
+        if ("BOND_NATIONAL".equals(bondId)) {
+            interestRate = baseRate.add(GameConstants.BOND_NATIONAL_SPREAD);
+            maturityMonths = GameConstants.COMPETITION_BOND_NATIONAL_MATURITY_MONTHS;
+            productName = "국채";
+        } else {
+            interestRate = baseRate.add(GameConstants.BOND_CORPORATE_SPREAD);
+            maturityMonths = GameConstants.COMPETITION_BOND_CORPORATE_MATURITY_MONTHS;
+            productName = "회사채";
+        }
+        
+        int maturityRound = session.getCurrentRound() + maturityMonths;
+        
+        // 예상 이자 계산 (단순 계산)
+        BigDecimal monthlyRate = interestRate.divide(BigDecimal.valueOf(12), 10, java.math.RoundingMode.HALF_UP);
+        long expectedInterest = BigDecimal.valueOf(amount)
+            .multiply(monthlyRate)
+            .multiply(BigDecimal.valueOf(maturityMonths))
+            .longValue();
+        long expectedMaturityAmount = amount + expectedInterest;
+        
+        return builder
+            .productName(productName)
+            .requestAmount(amount)
+            .totalCost(amount)
+            .expectedCashAfter(currentCash - amount)
+            .insufficientCash(insufficientCash)
+            .interestRate(interestRate)
+            .preferentialApplied(false)
+            .maturityRound(maturityRound)
+            .expectedMaturityAmount(expectedMaturityAmount)
+            .expectedInterest(expectedInterest)
+            .build();
+    }
+    
+    /**
+     * 주식명 조회
+     */
+    private String getStockName(String stockId) {
+        Map<String, String> stockNames = Map.of(
+            "STOCK_01", "성장형주식",
+            "STOCK_02", "가치형주식",
+            "STOCK_03", "배당형주식",
+            "STOCK_04", "IT주식",
+            "STOCK_05", "바이오주식",
+            "STOCK_06", "금융주식",
+            "STOCK_07", "에너지주식"
+        );
+        return stockNames.getOrDefault(stockId, stockId);
+    }
+    
+    /**
+     * 펀드명 조회
+     */
+    private String getFundName(String fundId) {
+        Map<String, String> fundNames = Map.of(
+            "FUND_01", "성장형펀드",
+            "FUND_02", "IT성장펀드",
+            "FUND_03", "배당형펀드"
+        );
+        return fundNames.getOrDefault(fundId, fundId);
     }
     
     /**

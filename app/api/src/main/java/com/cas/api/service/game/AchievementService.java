@@ -1,7 +1,6 @@
 package com.cas.api.service.game;
 
 import com.cas.api.dto.domain.GameSessionDto;
-import com.cas.api.dto.domain.PortfolioDto;
 import com.cas.api.enums.GameMode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -110,7 +109,7 @@ public class AchievementService {
             if (stockRatio != null && fundRatio != null) {
                 double riskRatio = stockRatio.doubleValue() + fundRatio.doubleValue();
                 if (riskRatio >= 0.8) {
-                    achieveAchievement(session, 6, "하이 리스커");
+                    achieveAchievement(session, 6, "하이리스커");
                 }
             }
         }

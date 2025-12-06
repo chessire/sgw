@@ -1,6 +1,0 @@
-#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
-#Mon Dec 01 18:09:01 KST 2025
-spring-security-web-5.8.13.jar>central=
-spring-security-web-5.8.13-sources.jar>central=
-spring-security-web-5.8.13-javadoc.jar>central=
-spring-security-web-5.8.13.pom>central=

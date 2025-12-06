@@ -162,6 +162,10 @@ public class TutorialController {
             }
             
             PortfolioDto portfolio = session.getPortfolio();
+            if (portfolio == null) {
+                log.error("Portfolio is null for session: uid={}", uid);
+                return ApiResponse.error("PORTFOLIO_NOT_FOUND", "포트폴리오 정보를 찾을 수 없습니다. 게임을 다시 시작해주세요.");
+            }
             
             // 플레이어 액션 처리 (매수/매도, 예적금 가입 등)
             actionService.processActions(session, portfolio, actions);

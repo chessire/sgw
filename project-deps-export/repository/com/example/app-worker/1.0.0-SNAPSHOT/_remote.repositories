@@ -1,0 +1,4 @@
+#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
+#Thu Nov 13 21:30:15 KST 2025
+app-worker-1.0.0-SNAPSHOT.jar>=
+app-worker-1.0.0-SNAPSHOT.pom>=

@@ -1,0 +1,6 @@
+#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
+#Wed Dec 03 17:08:25 KST 2025
+asm-9.3.pom>central=
+asm-9.3.jar>central=
+asm-9.3-sources.jar>central=
+asm-9.3-javadoc.jar>central=

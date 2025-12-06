@@ -1,6 +1,0 @@
-#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
-#Mon Dec 01 18:09:03 KST 2025
-spring-kafka-2.9.13-sources.jar>central=
-spring-kafka-2.9.13.jar>central=
-spring-kafka-2.9.13.pom>central=
-spring-kafka-2.9.13-javadoc.jar>central=

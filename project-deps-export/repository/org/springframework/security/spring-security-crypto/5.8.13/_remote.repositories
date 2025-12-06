@@ -1,0 +1,4 @@
+#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
+#Sun Dec 07 05:50:13 KST 2025
+spring-security-crypto-5.8.13.jar>=
+spring-security-crypto-5.8.13.pom>=

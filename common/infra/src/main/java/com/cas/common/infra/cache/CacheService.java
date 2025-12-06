@@ -204,5 +204,78 @@ public class CacheService {
             return null;
         }
     }
+
+    // ========================================
+    // Counter 지원 메서드 (원자적 증가)
+    // ========================================
+
+    /**
+     * 카운터 증가 (원자적 연산)
+     * 
+     * @param key Redis 키
+     * @return 증가 후 값
+     */
+    public Long increment(String key) {
+        try {
+            Long value = redisTemplate.opsForValue().increment(key);
+            log.debug("Incremented counter: key={}, value={}", key, value);
+            return value;
+        } catch (Exception e) {
+            log.error("Failed to increment counter. key={}", key, e);
+            return null;
+        }
+    }
+
+    /**
+     * 카운터 증가 (원자적 연산, delta 지정)
+     * 
+     * @param key Redis 키
+     * @param delta 증가량
+     * @return 증가 후 값
+     */
+    public Long increment(String key, long delta) {
+        try {
+            Long value = redisTemplate.opsForValue().increment(key, delta);
+            log.debug("Incremented counter: key={}, delta={}, value={}", key, delta, value);
+            return value;
+        } catch (Exception e) {
+            log.error("Failed to increment counter. key={}, delta={}", key, delta, e);
+            return null;
+        }
+    }
+
+    /**
+     * 카운터 값 조회
+     * 
+     * @param key Redis 키
+     * @return 현재 카운터 값, 없으면 null
+     */
+    public Long getCounter(String key) {
+        try {
+            String value = redisTemplate.opsForValue().get(key);
+            if (value == null) {
+                return null;
+            }
+            return Long.parseLong(value);
+        } catch (Exception e) {
+            log.error("Failed to get counter. key={}", key, e);
+            return null;
+        }
+    }
+
+    /**
+     * 카운터 초기화
+     * 
+     * @param key Redis 키
+     * @param initialValue 초기값
+     */
+    public void setCounter(String key, long initialValue) {
+        try {
+            redisTemplate.opsForValue().set(key, String.valueOf(initialValue));
+            log.debug("Set counter: key={}, value={}", key, initialValue);
+        } catch (Exception e) {
+            log.error("Failed to set counter. key={}, value={}", key, initialValue, e);
+        }
+    }
 }
 

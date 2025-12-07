@@ -1,43 +1,36 @@
 ﻿========================================
-PROJECT DEPENDENCIES - FULL TREE EXPORT
+PROJECT DEPENDENCIES - COMPLETE EXPORT
 ========================================
-Export Time: 2025-12-07 05:51:24
+Export Time: 2025-12-07 14:50:18
 
 [STATISTICS]
-- Total Artifacts: 158
-- Total Files: 1296
-- Total Size: 348.84 MB
+- Total Artifacts: 188
+- Total Files: 1564
+- Total Size: 349.18 MB
 - JAR files: 138
-- POM files: 202
+- POM files: 232
 - Sources: 43
 - Javadocs: 43
+- BOMs: 29
+- Plugins: 8
+- Missing: 10
 
 [WHAT'S INCLUDED]
 1. ALL project dependencies (compile, runtime, provided)
-2. ALL transitive dependencies  
-3. ALL parent POM chains for every dependency
-   - Example: spring-core -> spring-parent -> spring-boot-dependencies
-4. ALL Maven plugins with their parent POMs
-5. Sources and Javadocs (where available)
-6. Checksum files (.sha1, .md5)
-
-[PARENT POM CHAIN EXAMPLE]
-spring-core-5.3.39.pom
-  ?붴? parent: spring-parent-5.3.39.pom
-      ?붴? parent: spring-boot-dependencies-2.7.18.pom
-          ?붴? imports: jackson-bom, kotlin-bom, netty-bom, etc.
+2. ALL transitive dependencies
+3. ALL BOMs imported by spring-boot-dependencies:2.7.18
+   - jackson-bom, kotlin-bom, groovy-bom
+   - netty-bom, reactor-bom, junit-bom
+   - metrics-bom, infinispan-bom, jersey-bom
+   - java-driver-bom, okhttp-bom, ojdbc-bom
+   - ... (30+ BOMs total)
+4. ALL parent POM chains
+5. ALL Maven plugins for build
+6. Sources and Javadocs (where available)
+7. Checksum files (.sha1, .md5)
 
 [HOW TO USE IN NEXUS]
 1. Upload 'repository' folder to Nexus hosted repository
 2. Or copy to target machine's ~/.m2/repository/
-
-[STRUCTURE]
-repository/
-  org/springframework/spring-core/5.3.39/
-  org/springframework/spring-parent/5.3.39/        <- Parent POM
-  org/springframework/boot/spring-boot-dependencies/2.7.18/
-  com/fasterxml/jackson/jackson-bom/2.13.5/        <- Referenced BOM
-  org/apache/maven/plugins/maven-compiler-plugin/3.11.0/
-  ... (all dependencies with full parent chains)
 
 ========================================

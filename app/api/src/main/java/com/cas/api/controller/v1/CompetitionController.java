@@ -234,14 +234,19 @@ public class CompetitionController {
                 return ApiResponse.error("ADVICE_USE_FAILED", "조언 사용에 실패했습니다.");
             }
             
+            // 힌트 생성 (조언 사용 후)
+            AdviceService.HintResult hint = adviceService.generateHint(
+                session, request.getRoundNo(), GameMode.COMPETITION);
+            
             gameSessionService.updateSession(uid, GameMode.COMPETITION, session);
             
             Map<String, Object> data = new HashMap<>();
             data.put("remainingAdviceCount", adviceService.getRemainingAdviceCount(session));
             data.put("adviceUsed", true);
+            data.put("hint", hint.toMap());
             
-            log.info("Advice used successfully: uid={}, remaining={}", 
-                uid, data.get("remainingAdviceCount"));
+            log.info("Advice used successfully: uid={}, remaining={}, hintKey={}", 
+                uid, data.get("remainingAdviceCount"), hint.getKey());
             
             return ApiResponse.success(data);
             

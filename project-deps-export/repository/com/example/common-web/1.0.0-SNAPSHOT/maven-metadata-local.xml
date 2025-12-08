@@ -3,7 +3,7 @@
   <groupId>com.example</groupId>
   <artifactId>common-web</artifactId>
   <versioning>
-    <lastUpdated>20251207054825</lastUpdated>
+    <lastUpdated>20251208001944</lastUpdated>
     <snapshot>
       <localCopy>true</localCopy>
     </snapshot>
@@ -11,12 +11,12 @@
       <snapshotVersion>
         <extension>pom</extension>
         <value>1.0.0-SNAPSHOT</value>
-        <updated>20251207054825</updated>
+        <updated>20251208001944</updated>
       </snapshotVersion>
       <snapshotVersion>
         <extension>jar</extension>
         <value>1.0.0-SNAPSHOT</value>
-        <updated>20251207054825</updated>
+        <updated>20251208001944</updated>
       </snapshotVersion>
     </snapshotVersions>
   </versioning>

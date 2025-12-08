@@ -1,19 +1,19 @@
 ﻿========================================
 PROJECT DEPENDENCIES - COMPLETE EXPORT
 ========================================
-Export Time: 2025-12-07 14:50:18
+Export Time: 2025-12-08 09:23:21
 
 [STATISTICS]
-- Total Artifacts: 188
-- Total Files: 1564
-- Total Size: 349.18 MB
-- JAR files: 138
-- POM files: 232
+- Total Artifacts: 279
+- Total Files: 1941
+- Total Size: 357.9 MB
+- JAR files: 186
+- POM files: 323
 - Sources: 43
 - Javadocs: 43
 - BOMs: 29
-- Plugins: 8
-- Missing: 10
+- Plugins: 25
+- Missing: 51
 
 [WHAT'S INCLUDED]
 1. ALL project dependencies (compile, runtime, provided)

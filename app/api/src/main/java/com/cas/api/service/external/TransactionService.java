@@ -70,46 +70,46 @@ public class TransactionService {
     // [KMHAD054M] 고객 로그인 테이블
     // ─────────────────────────────────────────────────────────────────────────────
     /** 로그인 기록 생성 - AuthService.login() */
-    private static final String IF_054_INSERT = "TODO_054_INSERT";
+    private static final String IF_054_INSERT = "CKC_M_MCO_S_MCO00055";
     /** 로그아웃 처리 - AuthService.logout() */
-    private static final String IF_054_UPDATE = "TODO_054_UPDATE";
+    private static final String IF_054_UPDATE = "CKC_M_MCO_S_MCO00058";
     // private static final String IF_054_SELECT = "TODO_054_SELECT";  // 최근 로그인 정보 조회
     
     // ─────────────────────────────────────────────────────────────────────────────
     // [KMHAD055M] 게임 기본 정보 테이블 (닉네임, 업적)
     // ─────────────────────────────────────────────────────────────────────────────
     /** 게임 기본 정보 생성 - UserService.createUser() */
-    private static final String IF_055_INSERT = "TODO_055_INSERT";
+    private static final String IF_055_INSERT = "CKC_M_MCO_S_MCO00059";
     /** 업적 업데이트 - GameLoadService.saveAchievement() */
-    private static final String IF_055_UPDATE = "TODO_055_UPDATE";
+    private static final String IF_055_UPDATE = "CKC_M_MCO_S_MCO00060";
     /** 게임 기본 정보 조회 - GameLoadService, UserService */
-    private static final String IF_055_SELECT = "TODO_055_SELECT";
+    private static final String IF_055_SELECT = "CKC_M_MCO_S_MCO00061";
     
     // ─────────────────────────────────────────────────────────────────────────────
     // [KMHAD057M] 튜토리얼 정보 테이블
     // ─────────────────────────────────────────────────────────────────────────────
     /** 튜토리얼 시작 - GameLoadService.startTutorial() */
-    private static final String IF_057_INSERT = "TODO_057_INSERT";
+    private static final String IF_057_INSERT = "CKC_M_MCO_S_MCO00062";
     // private static final String IF_057_SELECT = "TODO_057_SELECT";  // 튜토리얼 정보 조회 (단건)
     /** 튜토리얼 목록 조회 - GameLoadService.loadTutorialData() */
-    private static final String IF_057_LIST = "TODO_057_LIST";
+    private static final String IF_057_LIST = "CKC_M_MCO_S_MCO00063";
     
     // ─────────────────────────────────────────────────────────────────────────────
     // [KMHAD058M] 튜토리얼 진행 정보 테이블 (라운드별)
     // ─────────────────────────────────────────────────────────────────────────────
     /** 튜토리얼 라운드 저장 - GameLoadService.saveRoundProgress() */
-    private static final String IF_058_INSERT = "TODO_058_INSERT";
+    private static final String IF_058_INSERT = "CKC_M_MCO_S_MCO00064";
     // private static final String IF_058_UPDATE_PORTFOLIO = "TODO_058_UP";  // 포트폴리오 업데이트 (라운드 중간 저장용)
     // private static final String IF_058_UPDATE_LOG = "TODO_058_UL";        // 로그 업데이트
     // private static final String IF_058_SELECT = "TODO_058_SELECT";        // 특정 라운드 조회 (단건)
     /** 튜토리얼 전체 라운드 조회 - GameLoadService.loadTutorialData() */
-    private static final String IF_058_SELECT_ALL = "TODO_058_SELECT_ALL";
+    private static final String IF_058_SELECT_ALL = "CKC_M_MCO_S_MCO00065";
     
     // ─────────────────────────────────────────────────────────────────────────────
     // [KMHAD059M] 튜토리얼 결과 테이블
     // ─────────────────────────────────────────────────────────────────────────────
     /** 튜토리얼 결과 저장 - GameLoadService.saveGameResult() */
-    private static final String IF_059_INSERT = "TODO_059_INSERT";
+    private static final String IF_059_INSERT = "CKC_M_MCO_S_MCO00066";
     // private static final String IF_059_SELECT = "TODO_059_SELECT";  // 튜토리얼 결과 조회 (단건)
     // private static final String IF_059_LIST = "TODO_059_LIST";      // 튜토리얼 결과 목록
     
@@ -117,43 +117,43 @@ public class TransactionService {
     // [KMHAD060M] 경쟁 정보 테이블
     // ─────────────────────────────────────────────────────────────────────────────
     /** 경쟁 모드 시작 - GameLoadService.startCompetition() */
-    private static final String IF_060_INSERT = "TODO_060_INSERT";
+    private static final String IF_060_INSERT = "CKC_M_MCO_MCO00067";
     // private static final String IF_060_SELECT = "TODO_060_SELECT";  // 경쟁 정보 조회 (단건)
     /** 경쟁 목록 조회 - GameLoadService.loadCompetitionData() */
-    private static final String IF_060_LIST = "TODO_060_LIST";
+    private static final String IF_060_LIST = "CKC_M_MCO_S_MCO00068";
     
     // ─────────────────────────────────────────────────────────────────────────────
     // [KMHAD061M] 경쟁 진행 정보 테이블 (라운드별)
     // ─────────────────────────────────────────────────────────────────────────────
     /** 경쟁 라운드 저장 - GameLoadService.saveRoundProgress() */
-    private static final String IF_061_INSERT = "TODO_061_INSERT";
+    private static final String IF_061_INSERT = "CKC_M_MCO_S_MCO00069";
     // private static final String IF_061_UPDATE_PORTFOLIO = "TODO_061_UP";  // 포트폴리오 업데이트 (라운드 중간 저장용)
     // private static final String IF_061_UPDATE_LOG = "TODO_061_UL";        // 로그 업데이트
     // private static final String IF_061_SELECT = "TODO_061_SELECT";        // 특정 라운드 조회 (단건)
     /** 경쟁 전체 라운드 조회 - GameLoadService.loadCompetitionData() */
-    private static final String IF_061_SELECT_ALL = "TODO_061_SELECT_ALL";
+    private static final String IF_061_SELECT_ALL = "CKC_M_MCO_S_MCO00070";
     
     // ─────────────────────────────────────────────────────────────────────────────
     // [KMHAD062M] 경쟁 결과 테이블 (랭킹)
     // ─────────────────────────────────────────────────────────────────────────────
     /** 경쟁 결과 저장 - GameLoadService.saveGameResult() */
-    private static final String IF_062_INSERT = "TODO_062_INSERT";
+    private static final String IF_062_INSERT = "CKC_M_MCO_S_MCO00071";
     // private static final String IF_062_SELECT = "TODO_062_SELECT";  // 경쟁 결과 조회 (단건)
     // private static final String IF_062_LIST = "TODO_062_LIST";      // 경쟁 결과 목록
     /** 전체 랭킹 조회 - RankingService.getRanking() */
-    private static final String IF_062_RANKING = "TODO_062_RANKING";
+    private static final String IF_062_RANKING = "CKC_M_MCO_S_MCO00072";
     
     // ─────────────────────────────────────────────────────────────────────────────
     // [KMHAD063M] 학습 정보 테이블 (영상/퀴즈)
     // ─────────────────────────────────────────────────────────────────────────────
     /** 학습 정보 저장 - GameLoadService.saveLearningInfo() */
-    private static final String IF_063_INSERT = "TODO_063_INSERT";
+    private static final String IF_063_INSERT = "CKC_M_MCO_MCO00073";
     /** 튜토리얼 학습 조회 - GameLoadService.loadTutorialData() */
-    private static final String IF_063_SELECT_TUTORIAL = "TODO_063_ST";
+    private static final String IF_063_SELECT_TUTORIAL = "CKC_M_MCO_MCO00074";
     /** 경쟁 학습 조회 - GameLoadService.loadCompetitionData() */
-    private static final String IF_063_SELECT_COMPETITION = "TODO_063_SC";
+    private static final String IF_063_SELECT_COMPETITION = "CKC_M_MCO_S_MCO00075";
     // private static final String IF_063_STATS = "TODO_063_STATS";    // 학습 통계 조회
-    
+
     // ─────────────────────────────────────────────────────────────────────────────
     // 공통 상수
     // ─────────────────────────────────────────────────────────────────────────────

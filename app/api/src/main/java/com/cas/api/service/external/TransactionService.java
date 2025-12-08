@@ -75,6 +75,7 @@ public class TransactionService {
     private static final String IF_054_UPDATE = "CKC_M_MCO_S_MCO00058";
     // private static final String IF_054_SELECT = "TODO_054_SELECT";  // 최근 로그인 정보 조회
     
+    
     // ─────────────────────────────────────────────────────────────────────────────
     // [KMHAD055M] 게임 기본 정보 테이블 (닉네임, 업적)
     // ─────────────────────────────────────────────────────────────────────────────

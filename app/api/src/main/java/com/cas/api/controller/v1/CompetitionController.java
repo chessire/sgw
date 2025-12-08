@@ -49,6 +49,7 @@ public class CompetitionController {
     private final ActionService actionService;
     private final LifeEventService lifeEventService;
     private final RankingService rankingService;
+    private final MonthlyRankingService monthlyRankingService;
     private final AchievementService achievementService;
     private final DepositService depositService;
     private final java.util.Random random = new java.util.Random();
@@ -1416,21 +1417,34 @@ public class CompetitionController {
         
         try {
             // 목업 랭킹 데이터 생성
+            // createMockRankingEntry(순위, uid, 닉네임, npcNo, 점수, 순자산, 수익률, 본인여부)
             List<Map<String, Object>> mockRankings = Arrays.asList(
-                createMockRankingEntry(1, "금융천재", 2847.5, 11780000L, "135.6%", false),
-                createMockRankingEntry(2, "투자고수", 2654.3, 10850000L, "117.0%", false),
-                createMockRankingEntry(3, "재테크왕", 2512.8, 10240000L, "104.8%", true),
-                createMockRankingEntry(4, "머니메이커", 2389.2, 9685000L, "93.7%", false),
-                createMockRankingEntry(5, "자산가", 2276.4, 9120000L, "82.4%", false),
-                createMockRankingEntry(6, "포트폴리오마스터", 2165.7, 8654000L, "73.1%", false),
-                createMockRankingEntry(7, "펀드러너", 2058.3, 8245000L, "64.9%", false),
-                createMockRankingEntry(8, "리스크헌터", 1954.2, 7890000L, "57.8%", false),
-                createMockRankingEntry(9, "배당수집가", 1856.8, 7512000L, "50.2%", false),
-                createMockRankingEntry(10, "장기투자자", 1765.4, 7185000L, "43.7%", false)
+                createMockRankingEntry(1, "user001", "당당하게나아가는포용이123", 1, 2847.5, 11780000L, "135.6%", false),
+                createMockRankingEntry(2, "user002", "용맹한포용이4567", 1, 2654.3, 10850000L, "117.0%", false),
+                createMockRankingEntry(3, uid, "열정적인채우미8901", 2, 2512.8, 10240000L, "104.8%", true),
+                createMockRankingEntry(4, "user004", "포근한마음의채우미2345", 2, 2389.2, 9685000L, "93.7%", false),
+                createMockRankingEntry(5, "user005", "지혜로운포용이6789", 1, 2276.4, 9120000L, "82.4%", false),
+                createMockRankingEntry(6, "user006", "씩씩한채우미1234", 2, 2165.7, 8654000L, "73.1%", false),
+                createMockRankingEntry(7, "user007", "활발한포용이5678", 1, 2058.3, 8245000L, "64.9%", false),
+                createMockRankingEntry(8, "user008", "차분한채우미9012", 2, 1954.2, 7890000L, "57.8%", false),
+                createMockRankingEntry(9, "user009", "명랑한포용이3456", 1, 1856.8, 7512000L, "50.2%", false),
+                createMockRankingEntry(10, "user010", "다정한채우미7890", 2, 1765.4, 7185000L, "43.7%", false)
             );
+            
+            // 내 정보 (myInfo)
+            Map<String, Object> myInfo = new HashMap<>();
+            myInfo.put("uid", uid);
+            myInfo.put("nickname", "열정적인채우미8901");
+            myInfo.put("npcNo", 2);  // 2: 채우미
+            myInfo.put("rank", 3);
+            myInfo.put("totalScore", 2513.0);
+            myInfo.put("bestScore", 2650.0);  // 최고 점수
+            myInfo.put("finalNetWorth", 10240000L);
+            myInfo.put("returnRate", "104.8%");
             
             Map<String, Object> data = new HashMap<>();
             data.put("rankings", mockRankings);
+            data.put("myInfo", myInfo);  // 내 정보 추가
             data.put("myRank", 3);
             data.put("totalPlayers", 150);
             data.put("updateTime", java.time.LocalDateTime.now().toString());
@@ -1443,6 +1457,138 @@ public class CompetitionController {
         } catch (Exception e) {
             log.error("Failed to get ranking: uid={}", uid, e);
             return ApiResponse.error("FAILED", "랭킹 조회 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 월간 랭킹 조회 (현재 월)
+     * GET /api/v1/competition/monthly-ranking
+     * 
+     * @param limit 조회 건수 (기본 10)
+     */
+    @GetMapping("/monthly-ranking")
+    public ApiResponse<Map<String, Object>> getMonthlyRanking(
+            @RequestHeader("uid") String uid,
+            @RequestParam(required = false, defaultValue = "10") Integer limit) {
+        
+        log.info("Getting monthly ranking: uid={}, limit={}", uid, limit);
+        
+        try {
+            // 월간 랭킹 조회 (현재 월)
+            Map<String, Object> rankingResult = monthlyRankingService.getMonthlyRanking(limit);
+            
+            if (!(Boolean) rankingResult.getOrDefault("success", false)) {
+                return ApiResponse.error("FAILED", (String) rankingResult.get("message"));
+            }
+            
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> rankings = (List<Map<String, Object>>) rankingResult.get("data");
+            
+            // 내 월간 순위 조회
+            Long mbrSno = Long.parseLong(uid);
+            Map<String, Object> myRankResult = monthlyRankingService.getMyMonthlyRanking(mbrSno);
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("rankings", rankings);
+            data.put("yearMonth", rankingResult.get("yearMonth"));
+            data.put("totalCount", rankingResult.get("totalCount"));
+            data.put("source", rankingResult.get("source"));
+            
+            if ((Boolean) myRankResult.getOrDefault("success", false)) {
+                data.put("myRank", myRankResult.get("data"));
+            }
+            
+            // 갱신 스케줄 정보
+            data.put("refreshSchedule", monthlyRankingService.getRefreshScheduleInfo());
+            
+            log.info("Monthly ranking retrieved: yearMonth={}, count={}", 
+                rankingResult.get("yearMonth"), rankings != null ? rankings.size() : 0);
+            
+            return ApiResponse.success(data);
+            
+        } catch (NumberFormatException e) {
+            log.error("Invalid uid format: uid={}", uid);
+            return ApiResponse.error("INVALID_UID", "유효하지 않은 사용자 ID입니다.");
+        } catch (Exception e) {
+            log.error("Failed to get monthly ranking: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "월간 랭킹 조회 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 월간 랭킹 캐시 갱신 (관리자용)
+     * POST /api/v1/competition/monthly-ranking/refresh
+     */
+    @PostMapping("/monthly-ranking/refresh")
+    public ApiResponse<Map<String, Object>> refreshMonthlyRanking(@RequestHeader("uid") String uid) {
+        
+        log.info("Refreshing monthly ranking cache: uid={}", uid);
+        
+        try {
+            String yearMonth = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMM"));
+            
+            monthlyRankingService.refreshMonthlyRankingCache();
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("success", true);
+            data.put("yearMonth", yearMonth);
+            data.put("message", "월간 랭킹 캐시가 갱신되었습니다.");
+            data.put("refreshedAt", java.time.LocalDateTime.now().toString());
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to refresh monthly ranking: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "월간 랭킹 캐시 갱신 실패: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 내 정보 조회 (목업 데이터)
+     * GET /api/v1/competition/my-info
+     * 
+     * 내 정보 화면에서 사용: 닉네임, NPC, 최고점수, 포트폴리오
+     */
+    @GetMapping("/my-info")
+    public ApiResponse<Map<String, Object>> getMyInfo(@RequestHeader("uid") String uid) {
+        
+        log.info("Getting my info (MOCK): uid={}", uid);
+        
+        try {
+            // 목업 내 정보 데이터
+            Map<String, Object> myInfo = new HashMap<>();
+            myInfo.put("uid", uid);
+            myInfo.put("nickname", "열정적인채우미8901");
+            myInfo.put("npcNo", 2);  // 1: 포용이, 2: 채우미
+            myInfo.put("npcName", "채우미");
+            
+            // 순위 정보
+            myInfo.put("rank", 3);
+            myInfo.put("totalPlayers", 150);
+            
+            // 점수 정보
+            myInfo.put("currentScore", 2513.0);
+            myInfo.put("bestScore", 2650.0);  // 최고 점수 (역대 최고)
+            
+            // 자산 정보
+            myInfo.put("finalNetWorth", 10240000L);
+            myInfo.put("returnRate", "104.8%");
+            
+            // 게임 통계
+            myInfo.put("totalGamesPlayed", 5);
+            myInfo.put("tutorialCompleted", true);
+            
+            Map<String, Object> data = new HashMap<>();
+            data.put("myInfo", myInfo);
+            data.put("isMockData", true);
+            
+            log.info("My info retrieved (MOCK): uid={}", uid);
+            
+            return ApiResponse.success(data);
+            
+        } catch (Exception e) {
+            log.error("Failed to get my info: uid={}", uid, e);
+            return ApiResponse.error("FAILED", "내 정보 조회 실패: " + e.getMessage());
         }
     }
     
@@ -1869,7 +2015,9 @@ public class CompetitionController {
      */
     private Map<String, Object> createMockRankingEntry(
             int rank, 
+            String uid,
             String nickname, 
+            int npcNo,
             double totalScore,
             long netWorth,
             String returnRate,
@@ -1877,7 +2025,9 @@ public class CompetitionController {
         
         Map<String, Object> entry = new HashMap<>();
         entry.put("rank", rank);
+        entry.put("uid", uid);               // 포트폴리오 조회용
         entry.put("nickname", nickname);
+        entry.put("npcNo", npcNo);           // 1: 포용이, 2: 채우미
         entry.put("totalScore", Math.ceil(totalScore)); // 소수점 올림
         entry.put("finalNetWorth", netWorth);
         entry.put("returnRate", returnRate);

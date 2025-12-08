@@ -1,4 +1,4 @@
 #NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
-#Sun Dec 07 14:48:29 KST 2025
+#Mon Dec 08 09:19:49 KST 2025
 jedis-3.10.0.jar>=
 jedis-3.10.0.pom>=

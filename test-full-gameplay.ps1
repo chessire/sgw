@@ -461,6 +461,13 @@ if (-not $SkipTutorial) {
                 $advice = Invoke-Api -Method POST -Endpoint "/v1/tutorial/use-advice" -Body @{ roundNo = $round + 1 } -SuppressError
                 if ($advice.Success) {
                     Write-Host "    [NPC ADVICE USED]" -ForegroundColor Cyan
+                    $adviceData = $advice.Data.data
+                    Write-Host "    Remaining: $($adviceData.remainingAdviceCount)" -ForegroundColor Cyan
+                    # Check hint data
+                    if ($adviceData.hint) {
+                        Write-Host "    [HINT] Type: $($adviceData.hint.hintType), Target: $($adviceData.hint.target)" -ForegroundColor Magenta
+                        Write-Host "           Prediction: $($adviceData.hint.prediction), Next Round: $($adviceData.hint.nextRound)" -ForegroundColor Magenta
+                    }
                 }
             }
         } else {
@@ -671,6 +678,13 @@ if (-not $SkipCompetition) {
                 $advice = Invoke-Api -Method POST -Endpoint "/v1/competition/use-advice" -Body @{ roundNo = $round + 1 } -SuppressError
                 if ($advice.Success) {
                     Write-Host "    [NPC ADVICE USED]" -ForegroundColor Cyan
+                    $adviceData = $advice.Data.data
+                    Write-Host "    Remaining: $($adviceData.remainingAdviceCount)" -ForegroundColor Cyan
+                    # Check hint data
+                    if ($adviceData.hint) {
+                        Write-Host "    [HINT] Type: $($adviceData.hint.hintType), Target: $($adviceData.hint.target)" -ForegroundColor Magenta
+                        Write-Host "           Prediction: $($adviceData.hint.prediction), Next Round: $($adviceData.hint.nextRound)" -ForegroundColor Magenta
+                    }
                 }
             }
         } else {
@@ -782,6 +796,115 @@ if ($ranking.Success) {
     }
 } else {
     Write-Fail "Ranking retrieval failed"
+}
+
+# ===================================================================
+# 7.2 Monthly Ranking
+# ===================================================================
+Write-SubSection "7.2 Monthly Ranking"
+
+# Current month ranking (yearMonth는 자동으로 현재 월 사용)
+$monthlyRanking = Invoke-Api -Method GET -Endpoint "/v1/competition/monthly-ranking?limit=10"
+
+if ($monthlyRanking.Success) {
+    $monthRank = $monthlyRanking.Data.data
+    Write-Success "Monthly Ranking retrieved"
+    Write-Host ""
+    Write-Host "  +---------------------------------------------+" -ForegroundColor Cyan
+    Write-Host "  |          MONTHLY RANKING ($($monthRank.yearMonth))            |" -ForegroundColor Cyan
+    Write-Host "  +---------------------------------------------+" -ForegroundColor Cyan
+    Write-Host "  |  Year-Month:  $($monthRank.yearMonth)" -ForegroundColor White
+    Write-Host "  |  Total Count: $($monthRank.totalCount)" -ForegroundColor White
+    Write-Host "  |  Source:      $($monthRank.source)" -ForegroundColor White
+    Write-Host "  +---------------------------------------------+" -ForegroundColor Cyan
+    
+    Write-Host "`n  Top Monthly Rankings:" -ForegroundColor Yellow
+    foreach ($player in $monthRank.rankings | Select-Object -First 5) {
+        Write-Host "    #$($player.rank). $($player.nickname) (NPC:$($player.npcNo)) - $($player.totalScore) pts" -ForegroundColor White
+    }
+    
+    # My Monthly Rank
+    if ($monthRank.myRank) {
+        Write-Host "`n  My Monthly Rank:" -ForegroundColor Yellow
+        Write-Host "    Rank: #$($monthRank.myRank.rank)" -ForegroundColor Cyan
+        Write-Host "    Score: $($monthRank.myRank.totalScore)" -ForegroundColor Cyan
+    }
+    
+    # Refresh Schedule Info
+    if ($monthRank.refreshSchedule) {
+        Write-Host "`n  Refresh Schedule:" -ForegroundColor Yellow
+        Write-Host "    Enabled: $($monthRank.refreshSchedule.enabled)" -ForegroundColor Gray
+        Write-Host "    Day: $($monthRank.refreshSchedule.day)" -ForegroundColor Gray
+        Write-Host "    Time: $($monthRank.refreshSchedule.time)" -ForegroundColor Gray
+        Write-Host "    Cache TTL: $($monthRank.refreshSchedule.cacheTtl) sec" -ForegroundColor Gray
+    }
+} else {
+    Write-Fail "Monthly Ranking retrieval failed"
+}
+
+# ===================================================================
+# 7.3 My Info (Competition)
+# ===================================================================
+Write-SubSection "7.3 My Info (Competition)"
+$myInfo = Invoke-Api -Method GET -Endpoint "/v1/competition/my-info"
+
+if ($myInfo.Success) {
+    $info = $myInfo.Data.data.myInfo
+    Write-Success "My Info retrieved"
+    Write-Host ""
+    Write-Host "  +---------------------------------------------+" -ForegroundColor Cyan
+    Write-Host "  |               MY INFO                       |" -ForegroundColor Cyan
+    Write-Host "  +---------------------------------------------+" -ForegroundColor Cyan
+    Write-Host "  |  UID:          $($info.uid)" -ForegroundColor White
+    Write-Host "  |  Nickname:     $($info.nickname)" -ForegroundColor White
+    Write-Host "  |  NPC No:       $($info.npcNo)" -ForegroundColor White
+    Write-Host "  |  NPC Name:     $($info.npcName)" -ForegroundColor White
+    Write-Host "  |  Rank:         #$($info.rank)" -ForegroundColor Yellow
+    Write-Host "  |  Best Score:   $($info.bestScore)" -ForegroundColor Green
+    Write-Host "  |  Games Played: $($info.totalGamesPlayed)" -ForegroundColor White
+    Write-Host "  |  Tutorial:     $($info.tutorialCompleted)" -ForegroundColor White
+    Write-Host "  +---------------------------------------------+" -ForegroundColor Cyan
+} else {
+    Write-Fail "My Info retrieval failed"
+}
+
+# ===================================================================
+# 7.4 Portfolio (Other User)
+# ===================================================================
+Write-SubSection "7.4 Portfolio (Other User)"
+
+# Test with a sample uid "user001"
+$targetUid = "user001"
+$portfolio = Invoke-Api -Method GET -Endpoint "/v1/competition/portfolio/$targetUid"
+
+if ($portfolio.Success) {
+    $portData = $portfolio.Data.data
+    Write-Success "Portfolio retrieved for $targetUid"
+    Write-Host ""
+    Write-Host "  +---------------------------------------------+" -ForegroundColor Cyan
+    Write-Host "  |           USER PORTFOLIO ($targetUid)         |" -ForegroundColor Cyan
+    Write-Host "  +---------------------------------------------+" -ForegroundColor Cyan
+    if ($portData.userInfo) {
+        Write-Host "  |  Nickname:  $($portData.userInfo.nickname)" -ForegroundColor White
+        Write-Host "  |  NPC No:    $($portData.userInfo.npcNo)" -ForegroundColor White
+        Write-Host "  |  Rank:      #$($portData.userInfo.rank)" -ForegroundColor Yellow
+        Write-Host "  |  Score:     $($portData.userInfo.bestScore)" -ForegroundColor Green
+    }
+    if ($portData.portfolio) {
+        Write-Host "  |  Cash:      $(Format-Won $portData.portfolio.cash)" -ForegroundColor White
+        Write-Host "  |  Net Worth: $(Format-Won $portData.portfolio.netWorth)" -ForegroundColor Green
+    }
+    Write-Host "  +---------------------------------------------+" -ForegroundColor Cyan
+    
+    # Portfolio Composition
+    if ($portData.composition) {
+        Write-Host "`n  Portfolio Composition:" -ForegroundColor Yellow
+        foreach ($item in $portData.composition) {
+            Write-Host "    $($item.assetType): $($item.percentage)% ($(Format-Won $item.amount))" -ForegroundColor White
+        }
+    }
+} else {
+    Write-Info "Portfolio for $targetUid not found (may not exist)"
 }
 
 # ===================================================================

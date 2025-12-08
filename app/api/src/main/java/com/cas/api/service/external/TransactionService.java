@@ -142,6 +142,8 @@ public class TransactionService {
     // private static final String IF_062_LIST = "TODO_062_LIST";      // 경쟁 결과 목록
     /** 전체 랭킹 조회 - RankingService.getRanking() */
     private static final String IF_062_RANKING = "TODO_062_RANKING";
+    /** 월간 랭킹 조회 - MonthlyRankingService.getMonthlyRanking() */
+    private static final String IF_062_MONTHLY_RANKING = "TODO_062_MONTHLY";
     
     // ─────────────────────────────────────────────────────────────────────────────
     // [KMHAD063M] 학습 정보 테이블 (영상/퀴즈)
@@ -816,6 +818,70 @@ public class TransactionService {
         HashMap<String, Object> param = new HashMap<>();
         param.put("LIMIT", limit);
         return executeRequest(param, IF_062_RANKING, OP_LIST);
+    }
+
+    /**
+     * 월간 랭킹 조회
+     * 
+     * MyBatis SQL:
+     * SELECT R.NINAM_SNO AS "ninamSno",
+     *        G.MBR_SNO AS "mbrSno",
+     *        G.NINAM_NM AS "ninamNm",
+     *        R.CMPTT_MODE_SCR AS "cmpttModeScr",
+     *        R.FNNR_MNG_SCR AS "fnnrMngScr",
+     *        R.RISK_MNG_SCR AS "riskMngScr",
+     *        R.ABSL_YILD_SCR AS "abslYildScr",
+     *        R.FIRST_CRT_DT AS "firstCrtDt",
+     *        RANK() OVER (ORDER BY R.CMPTT_MODE_SCR DESC) AS "ranking"
+     * FROM KMHAD062M R
+     * INNER JOIN KMHAD055M G ON R.NINAM_SNO = G.NINAM_SNO
+     * INNER JOIN KMHAD060M C ON R.CMPTT_SNO = C.CMPTT_SNO
+     * WHERE R.DTA_DEL_YN = 'N'
+     *   AND G.DTA_DEL_YN = 'N'
+     *   AND C.DTA_DEL_YN = 'N'
+     *   AND R.FIRST_CRT_DT >= TO_DATE(#{YEAR_MONTH} || '01', 'YYYYMMDD')
+     *   AND R.FIRST_CRT_DT < ADD_MONTHS(TO_DATE(#{YEAR_MONTH} || '01', 'YYYYMMDD'), 1)
+     * ORDER BY R.CMPTT_MODE_SCR DESC
+     * FETCH FIRST #{LIMIT} ROWS ONLY
+     * 
+     * @param yearMonth 년월 (형식: YYYYMM, 예: 202512)
+     * @param limit 조회 건수
+     */
+    public HashMap<String, Object> getMonthlyRanking(String yearMonth, Integer limit) throws KinfaRunException {
+        HashMap<String, Object> param = new HashMap<>();
+        param.put("YEAR_MONTH", yearMonth);
+        param.put("LIMIT", limit);
+        return executeRequest(param, IF_062_MONTHLY_RANKING, OP_LIST);
+    }
+
+    /**
+     * 사용자의 월간 순위 조회
+     * 
+     * MyBatis SQL:
+     * SELECT "ranking", "ninamSno", "mbrSno", "ninamNm", "cmpttModeScr"
+     * FROM (
+     *     SELECT R.NINAM_SNO AS "ninamSno",
+     *            G.MBR_SNO AS "mbrSno",
+     *            G.NINAM_NM AS "ninamNm",
+     *            R.CMPTT_MODE_SCR AS "cmpttModeScr",
+     *            RANK() OVER (ORDER BY R.CMPTT_MODE_SCR DESC) AS "ranking"
+     *     FROM KMHAD062M R
+     *     INNER JOIN KMHAD055M G ON R.NINAM_SNO = G.NINAM_SNO
+     *     WHERE R.DTA_DEL_YN = 'N'
+     *       AND G.DTA_DEL_YN = 'N'
+     *       AND R.FIRST_CRT_DT >= TO_DATE(#{YEAR_MONTH} || '01', 'YYYYMMDD')
+     *       AND R.FIRST_CRT_DT < ADD_MONTHS(TO_DATE(#{YEAR_MONTH} || '01', 'YYYYMMDD'), 1)
+     * )
+     * WHERE "mbrSno" = #{MBR_SNO}
+     * 
+     * @param mbrSno 회원일련번호
+     * @param yearMonth 년월 (형식: YYYYMM)
+     */
+    public HashMap<String, Object> getMyMonthlyRanking(Long mbrSno, String yearMonth) throws KinfaRunException {
+        HashMap<String, Object> param = new HashMap<>();
+        param.put("MBR_SNO", mbrSno);
+        param.put("YEAR_MONTH", yearMonth);
+        return executeRequest(param, IF_062_MONTHLY_RANKING, OP_SELECT);
     }
 
     // ========================================

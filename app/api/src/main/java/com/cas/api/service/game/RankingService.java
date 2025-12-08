@@ -250,7 +250,7 @@ public class RankingService implements InitializingBean {
                 result.put("success", true);
                 result.put("totalCount", cachedRanking.size());
                 result.put("message", "전체 랭킹을 확인하세요.");
-            } else {
+        } else {
                 result.put("success", false);
                 result.put("message", "랭킹 데이터를 불러올 수 없습니다.");
             }
